@@ -1307,3 +1307,14 @@ a:hover { text-decoration: underline; }
 .quote-row + .quote-row { border-top: 1px dashed #1a1a1a; }
 .impact-mid { color: #ffaa00; }
 .impact-high { color: #ff4444; }
+
+/* Compact balance bar (used on ONE shell) */
+.balance-bar {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 0 0 12px;
+}
+.balance-chip {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px;
+  padding: 6px 10px; font-size: 12px;
+}
+.balance-chip span:last-child { color: #ff8800; font-weight: 600; }
