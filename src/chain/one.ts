@@ -24,6 +24,94 @@ export interface TroveView {
   debt: bigint;
 }
 
+export interface UnderwaterTrove {
+  owner: string;
+  collateral: bigint;
+  debt: bigint;
+  // CR in basis points: collateral_usd_8dec * 10_000 / debt_8dec.
+  crBps: bigint;
+}
+
+// Discover trove owners by paging TroveOpened events. Stops at 1000.
+export async function discoverTroveOwners(client: SuiClient): Promise<string[]> {
+  const seen = new Set<string>();
+  let cursor: { txDigest: string; eventSeq: string } | null | undefined = undefined;
+  for (let i = 0; i < 20; i++) {
+    const page = await client.queryEvents({
+      query: { MoveEventType: `${ONE_PACKAGE}::ONE::TroveOpened` },
+      limit: 50,
+      order: "descending",
+      cursor: cursor ?? undefined,
+    });
+    for (const ev of page.data) {
+      const u = (ev.parsedJson as { user?: string } | undefined)?.user;
+      if (u) seen.add(u);
+    }
+    if (!page.hasNextPage) break;
+    cursor = page.nextCursor as typeof cursor;
+  }
+  return Array.from(seen);
+}
+
+// Fetch latest SUI/USD price from Pyth Hermes as 8-dec integer (matches
+// Move's price_8dec). Returns 0n on failure — caller should treat that
+// as "price unknown" and skip CR calc.
+export async function fetchSuiUsdPrice8dec(): Promise<bigint> {
+  try {
+    const url = `${PYTH_HERMES_URL}/api/latest_price_feeds?ids[]=${PYTH_SUI_USD_FEED_ID}`;
+    const r = await fetch(url);
+    if (!r.ok) return 0n;
+    const j = (await r.json()) as Array<{
+      price: { price: string; expo: number };
+    }>;
+    const f = j[0];
+    if (!f) return 0n;
+    const raw = BigInt(f.price.price);
+    const expo = f.price.expo; // typically -8 for SUI/USD
+    if (expo === -8) return raw;
+    if (expo < -8) {
+      const drop = -expo - 8;
+      return raw / 10n ** BigInt(drop);
+    }
+    return raw * 10n ** BigInt(8 + expo);
+  } catch {
+    return 0n;
+  }
+}
+
+// Returns troves with CR strictly below `LIQ_THRESHOLD_BPS` (150%).
+// Skips troves with debt == 0 (already closed).
+export async function discoverLiquidatable(
+  client: SuiClient,
+): Promise<{ candidates: UnderwaterTrove[]; price8dec: bigint; scanned: number }> {
+  const [owners, price8dec] = await Promise.all([
+    discoverTroveOwners(client),
+    fetchSuiUsdPrice8dec(),
+  ]);
+  if (price8dec === 0n) {
+    return { candidates: [], price8dec, scanned: owners.length };
+  }
+  const SUI_SCALE = 1_000_000_000n;
+  const LIQ_THRESHOLD_BPS = 15_000n;
+
+  const troves = await Promise.all(
+    owners.map(async (owner) => {
+      const t = await readTrove(client, owner);
+      if (!t || t.debt === 0n) return null;
+      // collUsd_8dec = coll_MIST * price_8dec / SUI_SCALE
+      const collUsd = (t.collateral * price8dec) / SUI_SCALE;
+      // crBps = collUsd_8dec * 10_000 / debt_8dec
+      const crBps = (collUsd * 10_000n) / t.debt;
+      return { owner, collateral: t.collateral, debt: t.debt, crBps };
+    }),
+  );
+  const live = troves.filter((x): x is UnderwaterTrove => x !== null);
+  const candidates = live
+    .filter((t) => t.crBps < LIQ_THRESHOLD_BPS)
+    .sort((a, b) => (a.crBps > b.crBps ? 1 : a.crBps < b.crBps ? -1 : 0));
+  return { candidates, price8dec, scanned: live.length };
+}
+
 interface RegistryFields {
   total_debt: string;
   total_sp: string;

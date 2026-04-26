@@ -162,21 +162,35 @@ export function OneSp() {
           )}
           <span className="amount-sym">ONE</span>
         </div>
-        {spPos && (spPos.pendingOne > 0n || spPos.pendingColl > 0n) && (
-          <p className="dim">
-            pending rewards: {formatUnits(spPos.pendingOne, ONE_DECIMALS)} ONE
-            {" · "}
-            {formatUnits(spPos.pendingColl, 9)} SUI
-          </p>
-        )}
         <button className="btn-primary" onClick={onWithdraw} disabled={isPending}>
           {isPending ? "Submitting…" : "Withdraw"}
         </button>
 
-        <h2 style={{ marginTop: 16 }}>Claim</h2>
-        <p className="dim">Settles accumulated SUI rewards into your SP position.</p>
-        <button className="btn-primary" onClick={onClaim} disabled={isPending}>
-          {isPending ? "Submitting…" : "Settle rewards"}
+        <h2 style={{ marginTop: 16 }}>Claim rewards</h2>
+        <p className="dim">
+          Liquidations pay SP depositors a share of seized SUI plus burn ONE.
+          Claim transfers the unclaimed amounts to your wallet.
+        </p>
+        <div className="quote-box">
+          <div className="quote-row">
+            <span className="dim">pending ONE</span>
+            <span>{formatUnits(spPos?.pendingOne ?? 0n, ONE_DECIMALS)}</span>
+          </div>
+          <div className="quote-row">
+            <span className="dim">pending SUI</span>
+            <span>{formatUnits(spPos?.pendingColl ?? 0n, 9)}</span>
+          </div>
+        </div>
+        <button
+          className="btn-primary"
+          onClick={onClaim}
+          disabled={
+            isPending ||
+            !spPos ||
+            (spPos.pendingOne === 0n && spPos.pendingColl === 0n)
+          }
+        >
+          {isPending ? "Submitting…" : "Claim rewards"}
         </button>
         {statusMsg && <div className="status">{statusMsg}</div>}
       </div>
