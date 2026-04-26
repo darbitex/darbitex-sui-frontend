@@ -11,6 +11,10 @@ import {
   readPool,
   type PoolView,
 } from "../chain/darbitex";
+import {
+  buildLockPositionTx,
+  LOCK_PRESETS_MS,
+} from "../chain/locker";
 import { coinLabel } from "../chain/coins";
 import { compactNumber, shortAddr } from "../chain/format";
 
@@ -151,6 +155,7 @@ function PositionActions({
   const [pool, setPool] = useState<PoolView | null>(null);
   const [percent, setPercent] = useState<number>(100);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [lockMs, setLockMs] = useState<number>(LOCK_PRESETS_MS[1].ms);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +217,24 @@ function PositionActions({
     }
   }
 
+  async function onLock() {
+    setStatusMsg(null);
+    try {
+      const unlockAt = BigInt(Date.now() + lockMs);
+      const tx = buildLockPositionTx({
+        typeA: position.typeA,
+        typeB: position.typeB,
+        positionId: position.id,
+        unlockAtMs: unlockAt,
+      });
+      const res = await signAndExecute({ transaction: tx });
+      setStatusMsg(`Locked — ${res.digest.slice(0, 10)}…`);
+      onChanged();
+    } catch (e) {
+      setStatusMsg((e as Error).message);
+    }
+  }
+
   return (
     <div style={{ padding: "12px 0" }}>
       <div className="row">
@@ -219,6 +242,33 @@ function PositionActions({
           {isPending ? "Submitting…" : "Claim fees"}
         </button>
       </div>
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <span className="field-label">Lock duration</span>
+        {LOCK_PRESETS_MS.map((p) => (
+          <button
+            key={p.ms}
+            className={lockMs === p.ms ? "btn-primary" : "btn-ghost"}
+            onClick={() => setLockMs(p.ms)}
+            type="button"
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          className="btn-primary"
+          onClick={onLock}
+          disabled={isPending}
+          style={{ marginLeft: "auto" }}
+        >
+          {isPending ? "Submitting…" : "Lock position"}
+        </button>
+      </div>
+      <p className="dim">
+        Wraps the LpPosition in an immutable LockedPosition. One-way: no
+        early unlock, no extend, no admin path. Fees claimable throughout
+        the lock period. View locked positions in the Locked tab.
+      </p>
 
       <div className="row" style={{ marginTop: 12 }}>
         <span className="field-label">Remove</span>

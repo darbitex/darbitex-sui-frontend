@@ -221,6 +221,8 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
   const [amountAStr, setAmountAStr] = useState("");
   const [amountBStr, setAmountBStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [balA, setBalA] = useState<bigint>(0n);
+  const [balB, setBalB] = useState<bigint>(0n);
 
   // Canonical sort — Move's assert_sorted enforces strict type_a < type_b.
   const [sortedA, sortedB] = useMemo(() => sortPair(typeA, typeB), [typeA, typeB]);
@@ -228,6 +230,28 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
 
   const decimalsA = KNOWN_COINS[typeA]?.decimals ?? 9;
   const decimalsB = KNOWN_COINS[typeB]?.decimals ?? 9;
+
+  // Live wallet balances per leg — refreshed on coin selection or after submit.
+  useEffect(() => {
+    if (!account) {
+      setBalA(0n);
+      setBalB(0n);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      client.getBalance({ owner: account.address, coinType: typeA }),
+      client.getBalance({ owner: account.address, coinType: typeB }),
+    ]).then(([a, b]) => {
+      if (!cancelled) {
+        setBalA(BigInt(a.totalBalance as string));
+        setBalB(BigInt(b.totalBalance as string));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, account, typeA, typeB, statusMsg]);
 
   async function onSubmit() {
     if (!account) return;
@@ -281,7 +305,10 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
 
       <div className="grid-2">
         <div>
-          <label className="field-label">Coin A</label>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <label className="field-label" style={{ margin: 0 }}>Coin A</label>
+            <span className="dim">bal: {formatUnits(balA, decimalsA)}</span>
+          </div>
           <select
             className="select"
             value={typeA}
@@ -302,11 +329,24 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
               inputMode="decimal"
             />
             <span className="amount-sym">{coinLabel(typeA)}</span>
+            {balA > 0n && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 10px", fontSize: 11 }}
+                onClick={() => setAmountAStr(formatUnits(balA, decimalsA))}
+              >
+                max
+              </button>
+            )}
           </div>
         </div>
 
         <div>
-          <label className="field-label">Coin B</label>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <label className="field-label" style={{ margin: 0 }}>Coin B</label>
+            <span className="dim">bal: {formatUnits(balB, decimalsB)}</span>
+          </div>
           <select
             className="select"
             value={typeB}
@@ -327,6 +367,16 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
               inputMode="decimal"
             />
             <span className="amount-sym">{coinLabel(typeB)}</span>
+            {balB > 0n && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 10px", fontSize: 11 }}
+                onClick={() => setAmountBStr(formatUnits(balB, decimalsB))}
+              >
+                max
+              </button>
+            )}
           </div>
         </div>
       </div>

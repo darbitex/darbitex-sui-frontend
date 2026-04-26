@@ -7,6 +7,8 @@ export function Liquidity() {
       <nav className="subnav">
         <NavLink to="pools" end>Pools</NavLink>
         <NavLink to="portfolio">Portfolio</NavLink>
+        <NavLink to="locked">Locked</NavLink>
+        <NavLink to="staking">Staking</NavLink>
       </nav>
       <Outlet />
     </section>

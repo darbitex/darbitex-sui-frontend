@@ -11,6 +11,12 @@ const PoolsBody = lazy(() => import("./pages/Pools").then((m) => ({ default: m.P
 const PortfolioBody = lazy(() =>
   import("./pages/Portfolio").then((m) => ({ default: m.PortfolioBody })),
 );
+const LockedBody = lazy(() =>
+  import("./pages/Locked").then((m) => ({ default: m.LockedBody })),
+);
+const StakingBody = lazy(() =>
+  import("./pages/Staking").then((m) => ({ default: m.StakingBody })),
+);
 
 const OneShell = lazy(() => import("./pages/One").then((m) => ({ default: m.OneShell })));
 const OneOverview = lazy(() =>
@@ -45,6 +51,8 @@ export function App() {
               <Route index element={<Navigate to="pools" replace />} />
               <Route path="pools" element={wrap(<PoolsBody />)} />
               <Route path="portfolio" element={wrap(<PortfolioBody />)} />
+              <Route path="locked" element={wrap(<LockedBody />)} />
+              <Route path="staking" element={wrap(<StakingBody />)} />
             </Route>
 
             <Route path="one" element={wrap(<OneShell />)}>

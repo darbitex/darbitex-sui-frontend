@@ -7,6 +7,16 @@ export const DARBITEX_PACKAGE =
 export const DARBITEX_FACTORY =
   "0x5f3e1d526eda4c34d47ec2227abe82d81d10ddf0cf714a3df071da3044e05567";
 
+// Darbitex LP locker — immutable time-lock satellite, sealed 2026-04-26.
+// Wraps darbitex::pool::LpPosition with a one-way unlock_at_ms gate.
+export const LOCKER_PACKAGE =
+  "0x62d8ca51e77fccbbc8be88905760a84db752a02fb398da115294cb5aa373d23c";
+
+// Darbitex LP staking — immutable agnostic emission primitive, sealed 2026-04-27.
+// Accepts naked LpPosition and locked LockedPosition via StakedLp enum.
+export const STAKING_PACKAGE =
+  "0x1647e7c513d1be2e95b5e1db28baf67480f82ed3457a478192bc57d13580d85b";
+
 // ONE Sui — immutable Liquity-V1 CDP, SUI collateral, Pyth oracle.
 // Package sealed via make_immutable; Registry.sealed=true.
 export const ONE_PACKAGE =
