@@ -42,6 +42,71 @@ export async function readRegistry(client: SuiClient): Promise<RegistryFields | 
   return (obj.data.content as unknown as { fields: RegistryFields }).fields;
 }
 
+export interface SpPositionView {
+  // Current effective ONE balance — what `sp_withdraw` would let you take.
+  // Decays via product_factor from past liquidations.
+  effective: bigint;
+  // Pending unclaimed rewards.
+  pendingOne: bigint;
+  pendingColl: bigint;
+}
+
+// Read a user's SP position. Mirrors ONE.move::sp_of's math:
+//   eff      = initial_balance * product_factor / snapshot_product
+//   p_one    = (reward_index_one  - snapshot_index_one ) * init / snapshot_product
+//   p_coll   = (reward_index_coll - snapshot_index_coll) * init / snapshot_product
+export async function readSpPosition(
+  client: SuiClient,
+  owner: string,
+): Promise<SpPositionView | null> {
+  const reg = await client.getObject({
+    id: ONE_REGISTRY,
+    options: { showContent: true },
+  });
+  const c = reg.data?.content;
+  if (!c || c.dataType !== "moveObject") return null;
+  const fields = (c as {
+    fields: Record<string, { fields?: { id?: { id: string } } } | string>;
+  }).fields;
+  const spTableId = (fields.sp_positions as { fields?: { id?: { id: string } } } | undefined)?.fields?.id?.id;
+  if (!spTableId) return null;
+  const productFactor = BigInt(fields.product_factor as string);
+  const rewardOne = BigInt(fields.reward_index_one as string);
+  const rewardColl = BigInt(fields.reward_index_coll as string);
+  try {
+    const dyn = await client.getDynamicFieldObject({
+      parentId: spTableId,
+      name: { type: "address", value: owner },
+    });
+    const dc = dyn.data?.content;
+    if (!dc || dc.dataType !== "moveObject") return null;
+    const sp = (dc as {
+      fields: {
+        value?: {
+          fields: {
+            initial_balance: string;
+            snapshot_product: string;
+            snapshot_index_one: string;
+            snapshot_index_coll: string;
+          };
+        };
+      };
+    }).fields.value?.fields;
+    if (!sp) return null;
+    const init = BigInt(sp.initial_balance);
+    const snapP = BigInt(sp.snapshot_product);
+    const snapOne = BigInt(sp.snapshot_index_one);
+    const snapColl = BigInt(sp.snapshot_index_coll);
+    if (snapP === 0n) return null;
+    const effective = (init * productFactor) / snapP;
+    const pendingOne = ((rewardOne - snapOne) * init) / snapP;
+    const pendingColl = ((rewardColl - snapColl) * init) / snapP;
+    return { effective, pendingOne, pendingColl };
+  } catch {
+    return null;
+  }
+}
+
 // Read a user's trove via the troves Table dynamic field.
 export async function readTrove(client: SuiClient, owner: string): Promise<TroveView | null> {
   const reg = await client.getObject({

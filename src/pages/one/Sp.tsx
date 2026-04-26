@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
@@ -8,6 +8,8 @@ import {
   buildSpClaimTx,
   buildSpDepositTx,
   buildSpWithdrawTx,
+  readSpPosition,
+  type SpPositionView,
 } from "../../chain/one";
 import { ONE_COIN_TYPE, ONE_DECIMALS } from "../../config";
 import { formatUnits, parseUnits } from "../../chain/format";
@@ -22,6 +24,23 @@ export function OneSp() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
+  const [spPos, setSpPos] = useState<SpPositionView | null>(null);
+
+  useEffect(() => {
+    if (!account) {
+      setSpPos(null);
+      return;
+    }
+    let cancelled = false;
+    readSpPosition(client, account.address).then((p) => {
+      if (!cancelled) setSpPos(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, account, statusMsg]);
+
+  const spDeposited = spPos?.effective ?? 0n;
 
   const depositAmount = useMemo(() => {
     try {
@@ -117,6 +136,12 @@ export function OneSp() {
 
       <div className="panel">
         <h2>Withdraw</h2>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <label className="field-label" style={{ margin: 0 }}>Amount</label>
+          <span className="dim">
+            available: {formatUnits(spDeposited, ONE_DECIMALS)} ONE
+          </span>
+        </div>
         <div className="amount-row">
           <input
             className="input"
@@ -125,8 +150,25 @@ export function OneSp() {
             placeholder="0.0"
             inputMode="decimal"
           />
+          {spDeposited > 0n && (
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ padding: "4px 10px", fontSize: 11 }}
+              onClick={() => setWithdrawStr(formatUnits(spDeposited, ONE_DECIMALS))}
+            >
+              max
+            </button>
+          )}
           <span className="amount-sym">ONE</span>
         </div>
+        {spPos && (spPos.pendingOne > 0n || spPos.pendingColl > 0n) && (
+          <p className="dim">
+            pending rewards: {formatUnits(spPos.pendingOne, ONE_DECIMALS)} ONE
+            {" · "}
+            {formatUnits(spPos.pendingColl, 9)} SUI
+          </p>
+        )}
         <button className="btn-primary" onClick={onWithdraw} disabled={isPending}>
           {isPending ? "Submitting…" : "Withdraw"}
         </button>
