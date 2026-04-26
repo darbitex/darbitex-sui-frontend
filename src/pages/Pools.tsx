@@ -139,7 +139,7 @@ export function PoolsBody() {
                       </a>
                     </td>
                     <td>
-                      <div className="row" style={{ gap: 4, margin: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         <button
                           className="btn-ghost"
                           style={{ padding: "6px 10px", fontSize: 11 }}

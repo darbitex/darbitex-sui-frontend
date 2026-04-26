@@ -5,8 +5,9 @@ import {
   useSuiClient,
 } from "@mysten/dapp-kit";
 import { buildRedeemTx } from "../../chain/one";
-import { ONE_DECIMALS } from "../../config";
-import { parseUnits } from "../../chain/format";
+import { ONE_COIN_TYPE, ONE_DECIMALS } from "../../config";
+import { formatUnits, parseUnits } from "../../chain/format";
+import { useCoinBalance } from "../../chain/useBalance";
 
 export function OneRedeem() {
   const client = useSuiClient();
@@ -15,6 +16,8 @@ export function OneRedeem() {
   const [target, setTarget] = useState("");
   const [amountStr, setAmountStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
 
   const amount = useMemo(() => {
     try {
@@ -58,7 +61,10 @@ export function OneRedeem() {
         onChange={(e) => setTarget(e.target.value)}
         placeholder="0x…"
       />
-      <label className="field-label">Amount (ONE)</label>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <label className="field-label" style={{ margin: 0 }}>Amount (ONE)</label>
+        <span className="dim">bal: {formatUnits(oneBal, ONE_DECIMALS)} ONE</span>
+      </div>
       <div className="amount-row">
         <input
           className="input"
@@ -67,6 +73,16 @@ export function OneRedeem() {
           placeholder="0.0"
           inputMode="decimal"
         />
+        {oneBal > 0n && (
+          <button
+            type="button"
+            className="btn-ghost"
+            style={{ padding: "4px 10px", fontSize: 11 }}
+            onClick={() => setAmountStr(formatUnits(oneBal, ONE_DECIMALS))}
+          >
+            max
+          </button>
+        )}
         <span className="amount-sym">ONE</span>
       </div>
       <button

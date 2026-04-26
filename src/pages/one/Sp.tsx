@@ -9,8 +9,9 @@ import {
   buildSpDepositTx,
   buildSpWithdrawTx,
 } from "../../chain/one";
-import { ONE_DECIMALS } from "../../config";
-import { parseUnits } from "../../chain/format";
+import { ONE_COIN_TYPE, ONE_DECIMALS } from "../../config";
+import { formatUnits, parseUnits } from "../../chain/format";
+import { useCoinBalance } from "../../chain/useBalance";
 
 export function OneSp() {
   const client = useSuiClient();
@@ -19,6 +20,8 @@ export function OneSp() {
   const [depositStr, setDepositStr] = useState("");
   const [withdrawStr, setWithdrawStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
 
   const depositAmount = useMemo(() => {
     try {
@@ -83,6 +86,10 @@ export function OneSp() {
           Deposit ONE to absorb liquidations. Earns liquidator-share SUI plus
           burns debt.
         </p>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <label className="field-label" style={{ margin: 0 }}>Amount</label>
+          <span className="dim">bal: {formatUnits(oneBal, ONE_DECIMALS)} ONE</span>
+        </div>
         <div className="amount-row">
           <input
             className="input"
@@ -91,6 +98,16 @@ export function OneSp() {
             placeholder="0.0"
             inputMode="decimal"
           />
+          {oneBal > 0n && (
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ padding: "4px 10px", fontSize: 11 }}
+              onClick={() => setDepositStr(formatUnits(oneBal, ONE_DECIMALS))}
+            >
+              max
+            </button>
+          )}
           <span className="amount-sym">ONE</span>
         </div>
         <button className="btn-primary" onClick={onDeposit} disabled={isPending}>

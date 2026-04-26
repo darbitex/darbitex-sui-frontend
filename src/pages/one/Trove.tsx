@@ -11,7 +11,14 @@ import {
   type TroveView,
 } from "../../chain/one";
 import { compactNumber, formatUnits, parseUnits } from "../../chain/format";
-import { ONE_DECIMALS, ONE_MIN_DEBT, SUI_DECIMALS } from "../../config";
+import { useCoinBalance } from "../../chain/useBalance";
+import {
+  ONE_COIN_TYPE,
+  ONE_DECIMALS,
+  ONE_MIN_DEBT,
+  SUI_COIN_TYPE,
+  SUI_DECIMALS,
+} from "../../config";
 
 export function OneTrove() {
   const client = useSuiClient();
@@ -24,6 +31,9 @@ export function OneTrove() {
   const [borrowStr, setBorrowStr] = useState("");
   const [topupStr, setTopupStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const suiBal = useCoinBalance(SUI_COIN_TYPE, statusMsg);
+  const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
 
   useEffect(() => {
     if (!account) return;
@@ -120,7 +130,10 @@ export function OneTrove() {
               <span className="dim">Debt</span>
               <span>{compactNumber(trove.debt, ONE_DECIMALS)} ONE</span>
             </div>
-            <label className="field-label">Add collateral (SUI)</label>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <label className="field-label" style={{ margin: 0 }}>Add collateral (SUI)</label>
+              <span className="dim">bal: {formatUnits(suiBal, SUI_DECIMALS)}</span>
+            </div>
             <div className="amount-row">
               <input
                 className="input"
@@ -129,6 +142,16 @@ export function OneTrove() {
                 placeholder="0.0"
                 inputMode="decimal"
               />
+              {suiBal > 0n && (
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                  onClick={() => setTopupStr(formatUnits(suiBal, SUI_DECIMALS))}
+                >
+                  max
+                </button>
+              )}
               <span className="amount-sym">SUI</span>
             </div>
             <button className="btn-primary" onClick={onTopUp} disabled={isPending}>
@@ -142,7 +165,10 @@ export function OneTrove() {
 
       <div className="panel">
         <h2>Open trove</h2>
-        <label className="field-label">Collateral (SUI)</label>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <label className="field-label" style={{ margin: 0 }}>Collateral (SUI)</label>
+          <span className="dim">bal: {formatUnits(suiBal, SUI_DECIMALS)}</span>
+        </div>
         <div className="amount-row">
           <input
             className="input"
@@ -151,9 +177,22 @@ export function OneTrove() {
             placeholder="0.0"
             inputMode="decimal"
           />
+          {suiBal > 0n && (
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ padding: "4px 10px", fontSize: 11 }}
+              onClick={() => setCollStr(formatUnits(suiBal, SUI_DECIMALS))}
+            >
+              max
+            </button>
+          )}
           <span className="amount-sym">SUI</span>
         </div>
-        <label className="field-label">Borrow (ONE)</label>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <label className="field-label" style={{ margin: 0 }}>Borrow (ONE)</label>
+          <span className="dim">bal: {formatUnits(oneBal, ONE_DECIMALS)}</span>
+        </div>
         <div className="amount-row">
           <input
             className="input"
