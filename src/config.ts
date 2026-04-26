@@ -30,6 +30,13 @@ export const PYTH_HERMES_URL = "https://hermes.pyth.network";
 // SUI native coin type. SUI is 9 decimals (MIST).
 export const SUI_COIN_TYPE = "0x2::sui::SUI";
 
+// Circle's native USDC on Sui mainnet (issued by Circle via CCTP).
+// 6 decimals. The canonical USDC type — bridged variants like the
+// Wormhole-wrapped USDC at 0x5d4b...::coin::COIN are deprecated.
+export const USDC_COIN_TYPE =
+  "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC";
+export const USDC_DECIMALS = 6;
+
 // ONE protocol parameters (informational; locked on-chain forever).
 export const ONE_DECIMALS = 8;
 export const SUI_DECIMALS = 9;

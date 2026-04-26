@@ -111,6 +111,38 @@ export async function buildSwapTx(
   return tx;
 }
 
+export interface CreatePoolArgs {
+  // Caller-supplied; the helper does NOT re-sort. Use sortPair() upstream.
+  typeA: string;
+  typeB: string;
+  amountA: bigint;
+  amountB: bigint;
+  sender: string;
+}
+
+// pool_factory::create_canonical_pool_entry<A,B>(factory, coin_a, coin_b, clock, ctx)
+// Move enforces strict A < B order via assert_sorted; pre-sort at call site.
+// Aborts E_DUPLICATE_PAIR if the canonical pool for this pair already exists.
+export async function buildCreatePoolTx(
+  client: SuiClient,
+  args: CreatePoolArgs,
+): Promise<Transaction> {
+  const tx = new Transaction();
+  const coinA = await takeExactCoin(client, tx, args.sender, args.typeA, args.amountA);
+  const coinB = await takeExactCoin(client, tx, args.sender, args.typeB, args.amountB);
+  tx.moveCall({
+    target: `${DARBITEX_PACKAGE}::pool_factory::create_canonical_pool_entry`,
+    typeArguments: [args.typeA, args.typeB],
+    arguments: [
+      tx.object(DARBITEX_FACTORY),
+      coinA,
+      coinB,
+      tx.object("0x6"),
+    ],
+  });
+  return tx;
+}
+
 export interface AddLiquidityArgs {
   pool: PoolView;
   amountA: bigint;

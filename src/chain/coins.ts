@@ -1,4 +1,11 @@
-import { ONE_COIN_TYPE, ONE_DECIMALS, SUI_COIN_TYPE, SUI_DECIMALS } from "../config";
+import {
+  ONE_COIN_TYPE,
+  ONE_DECIMALS,
+  SUI_COIN_TYPE,
+  SUI_DECIMALS,
+  USDC_COIN_TYPE,
+  USDC_DECIMALS,
+} from "../config";
 
 export interface CoinInfo {
   type: string;
@@ -11,6 +18,7 @@ export interface CoinInfo {
 // is fetched on-demand via getCoinMetadata.
 export const KNOWN_COINS: Record<string, CoinInfo> = {
   [SUI_COIN_TYPE]: { type: SUI_COIN_TYPE, symbol: "SUI", decimals: SUI_DECIMALS },
+  [USDC_COIN_TYPE]: { type: USDC_COIN_TYPE, symbol: "USDC", decimals: USDC_DECIMALS },
   [ONE_COIN_TYPE]: { type: ONE_COIN_TYPE, symbol: "ONE", decimals: ONE_DECIMALS },
 };
 
