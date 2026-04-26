@@ -24,6 +24,40 @@ export function AboutPage() {
       <h1 className="page-title">About</h1>
 
       <div className="panel">
+        <h2>Part of the Darbitex ecosystem</h2>
+        <p>
+          Darbitex Sui is the Sui-mainnet sibling of <strong>Darbitex on
+          Aptos</strong> — same design philosophy (immutable, ownerless,
+          zero-admin AMM with surplus-fee capture and a Liquity-V1-style
+          stablecoin), ported to Sui's object model. The Aptos deployment is
+          the original and runs the broader product surface (arbitrage,
+          flashbot, vault, staking, factory, disperse).
+        </p>
+        <ul className="kv">
+          <li>
+            <span className="dim">Aptos frontend</span>
+            <a
+              href="https://darbitex.wal.app"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              darbitex.wal.app
+            </a>
+          </li>
+          <li>
+            <span className="dim">Sui frontend</span>
+            <a
+              href="https://niocoin.wal.app"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              niocoin.wal.app
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div className="panel">
         <h2>Darbitex Sui</h2>
         <p>
           x*y=k AMM. 5 bps swap fee, 5 bps flash-loan fee, 100% to LPs. No
