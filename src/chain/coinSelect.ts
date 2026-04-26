@@ -1,8 +1,10 @@
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import type { Transaction, TransactionResult } from "@mysten/sui/transactions";
 import { SUI_COIN_TYPE } from "../config";
+import { normalizeType } from "./coins";
 
 type SuiClient = SuiJsonRpcClient;
+const SUI_TYPE_CANONICAL = normalizeType(SUI_COIN_TYPE);
 
 // Returns a TransactionResult representing a Coin<T> of exactly `amount`,
 // suitable as a moveCall argument or transfer target.
@@ -19,7 +21,7 @@ export async function takeExactCoin(
   coinType: string,
   amount: bigint,
 ): Promise<TransactionResult> {
-  if (coinType === SUI_COIN_TYPE) {
+  if (normalizeType(coinType) === SUI_TYPE_CANONICAL) {
     return tx.splitCoins(tx.gas, [tx.pure.u64(amount)]);
   }
   const coins = await client.getCoins({ owner, coinType });

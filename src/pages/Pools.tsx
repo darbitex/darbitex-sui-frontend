@@ -11,7 +11,7 @@ import {
   type PoolView,
 } from "../chain/darbitex";
 import { coinLabel, KNOWN_COINS, sortPair } from "../chain/coins";
-import { compactNumber, parseUnits, shortAddr } from "../chain/format";
+import { compactNumber, formatUnits, parseUnits, shortAddr } from "../chain/format";
 
 const KNOWN_TYPES = Object.keys(KNOWN_COINS);
 
@@ -287,21 +287,68 @@ function AddLiquidityForm({
   const [amountAStr, setAmountAStr] = useState("");
   const [amountBStr, setAmountBStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [balA, setBalA] = useState<bigint>(0n);
+  const [balB, setBalB] = useState<bigint>(0n);
 
   const decimalsA = KNOWN_COINS[pool.typeA]?.decimals ?? 9;
   const decimalsB = KNOWN_COINS[pool.typeB]?.decimals ?? 9;
 
-  // Optimal-pair hint based on current reserves (matches Move math).
-  const hintB = useMemo(() => {
-    try {
-      const rawA = parseUnits(amountAStr || "0", decimalsA);
-      if (rawA === 0n || pool.reserveA === 0n) return "";
-      const opt = (rawA * pool.reserveB) / pool.reserveA;
-      return formatRaw(opt, decimalsB);
-    } catch {
-      return "";
+  // Live wallet balances per leg.
+  useEffect(() => {
+    if (!account) {
+      setBalA(0n);
+      setBalB(0n);
+      return;
     }
-  }, [amountAStr, pool.reserveA, pool.reserveB, decimalsA, decimalsB]);
+    let cancelled = false;
+    Promise.all([
+      client.getBalance({ owner: account.address, coinType: pool.typeA }),
+      client.getBalance({ owner: account.address, coinType: pool.typeB }),
+    ]).then(([a, b]) => {
+      if (!cancelled) {
+        setBalA(BigInt(a.totalBalance as string));
+        setBalB(BigInt(b.totalBalance as string));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, account, pool.typeA, pool.typeB, statusMsg]);
+
+  // Bidirectional auto-fill: editing A computes optimal B from reserves;
+  // editing B computes optimal A. Matches the ratio Move's add_liquidity
+  // would actually accept (`amount_b_optimal = amount_a * reserve_b / reserve_a`).
+  function onChangeA(v: string) {
+    setAmountAStr(v);
+    if (pool.reserveA === 0n || pool.reserveB === 0n) return;
+    try {
+      const rawA = parseUnits(v || "0", decimalsA);
+      if (rawA === 0n) {
+        setAmountBStr("");
+        return;
+      }
+      const optB = (rawA * pool.reserveB) / pool.reserveA;
+      setAmountBStr(formatUnits(optB, decimalsB));
+    } catch {
+      /* invalid input — leave B alone */
+    }
+  }
+
+  function onChangeB(v: string) {
+    setAmountBStr(v);
+    if (pool.reserveA === 0n || pool.reserveB === 0n) return;
+    try {
+      const rawB = parseUnits(v || "0", decimalsB);
+      if (rawB === 0n) {
+        setAmountAStr("");
+        return;
+      }
+      const optA = (rawB * pool.reserveA) / pool.reserveB;
+      setAmountAStr(formatUnits(optA, decimalsA));
+    } catch {
+      /* invalid input — leave A alone */
+    }
+  }
 
   async function onSubmit() {
     if (!account) return;
@@ -335,25 +382,54 @@ function AddLiquidityForm({
     <div style={{ padding: "12px 0" }}>
       <div className="grid-2">
         <div>
-          <label className="field-label">{coinLabel(pool.typeA)}</label>
-          <input
-            className="input"
-            value={amountAStr}
-            onChange={(e) => setAmountAStr(e.target.value)}
-            placeholder="0.0"
-            inputMode="decimal"
-          />
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <label className="field-label" style={{ margin: 0 }}>{coinLabel(pool.typeA)}</label>
+            <span className="dim">bal: {formatUnits(balA, decimalsA)}</span>
+          </div>
+          <div className="amount-row">
+            <input
+              className="input"
+              value={amountAStr}
+              onChange={(e) => onChangeA(e.target.value)}
+              placeholder="0.0"
+              inputMode="decimal"
+            />
+            {balA > 0n && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 10px", fontSize: 11 }}
+                onClick={() => onChangeA(formatUnits(balA, decimalsA))}
+              >
+                max
+              </button>
+            )}
+          </div>
         </div>
         <div>
-          <label className="field-label">{coinLabel(pool.typeB)}</label>
-          <input
-            className="input"
-            value={amountBStr}
-            onChange={(e) => setAmountBStr(e.target.value)}
-            placeholder={hintB || "0.0"}
-            inputMode="decimal"
-          />
-          {hintB && <span className="dim">optimal ≈ {hintB}</span>}
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <label className="field-label" style={{ margin: 0 }}>{coinLabel(pool.typeB)}</label>
+            <span className="dim">bal: {formatUnits(balB, decimalsB)}</span>
+          </div>
+          <div className="amount-row">
+            <input
+              className="input"
+              value={amountBStr}
+              onChange={(e) => onChangeB(e.target.value)}
+              placeholder="0.0"
+              inputMode="decimal"
+            />
+            {balB > 0n && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 10px", fontSize: 11 }}
+                onClick={() => onChangeB(formatUnits(balB, decimalsB))}
+              >
+                max
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <button
@@ -367,13 +443,4 @@ function AddLiquidityForm({
       {statusMsg && <div className="status">{statusMsg}</div>}
     </div>
   );
-}
-
-function formatRaw(raw: bigint, decimals: number): string {
-  const base = 10n ** BigInt(decimals);
-  const whole = raw / base;
-  const frac = raw % base;
-  if (frac === 0n) return whole.toString();
-  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
-  return `${whole}.${fracStr}`;
 }

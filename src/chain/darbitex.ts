@@ -7,6 +7,7 @@ import {
   DARBITEX_PACKAGE,
   DARBITEX_SWAP_FEE_BPS,
 } from "../config";
+import { normalizeType } from "./coins";
 import { takeExactCoin } from "./coinSelect";
 
 export interface PoolView {
@@ -42,7 +43,15 @@ export async function listPools(client: SuiClient): Promise<PoolView[]> {
   for (const ev of events.data) {
     const e = ev.parsedJson as PoolCreatedEvent | undefined;
     if (!e) continue;
-    const view = await readPool(client, e.pool_id, e.type_a, e.type_b);
+    // Move's `type_name::into_string()` returns types without the 0x
+    // prefix and with the address segment fully padded — normalize so
+    // event-sourced types match the canonical form used elsewhere.
+    const view = await readPool(
+      client,
+      e.pool_id,
+      normalizeType(e.type_a),
+      normalizeType(e.type_b),
+    );
     if (view) pools.push(view);
   }
   return pools;
@@ -269,8 +278,8 @@ export async function listUserPositions(
         id: o.data.objectId,
         poolId: fields.pool_id,
         shares: BigInt(fields.shares ?? "0"),
-        typeA: m[1].trim(),
-        typeB: m[2].trim(),
+        typeA: normalizeType(m[1].trim()),
+        typeB: normalizeType(m[2].trim()),
       });
     }
     if (!page.hasNextPage) break;
