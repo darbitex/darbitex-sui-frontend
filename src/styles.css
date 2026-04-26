@@ -61,13 +61,13 @@ a:hover { text-decoration: underline; }
   flex: 1 0 auto;
   padding: 10px 11px;
   text-align: center;
-  color: #555;
+  color: #ff8800;
   font-size: 12px;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
-.nav a:hover { color: #aaa; text-decoration: none; }
+.nav a:hover { color: #ff8800; text-decoration: none; }
 .nav a.active { color: #ff8800; border-bottom-color: #ff8800; }
 
 /* Sub-nav (tabs inside a merged page) */
@@ -205,8 +205,9 @@ a:hover { text-decoration: underline; }
 /* Footer */
 .footer {
   padding: 16px 20px; text-align: center;
-  font-size: 11px; color: #333; border-top: 1px solid #111;
+  font-size: 11px; color: #ff8800; border-top: 1px solid #111;
 }
+.footer .social { color: #ff8800; }
 
 /* Empty state */
 .empty { text-align: center; color: #333; padding: 60px 20px; }
@@ -1183,3 +1184,112 @@ a:hover { text-decoration: underline; }
   display: grid; grid-template-columns: 1fr 1fr 60px;
   padding: 8px 0; border-bottom: 1px solid #0f0f0f;
 }
+
+/* ============================================================ */
+/* Darbitex Sui — page layout classes (mobile-first, 480px max). */
+/* ============================================================ */
+
+.page { padding: 8px 0 24px; }
+.page-title { color: #ff8800; font-size: 22px; margin: 0 0 8px; }
+.page-subtitle { color: #888; font-size: 13px; margin: 0 0 16px; }
+
+.panel {
+  background: #111; border: 1px solid #1a1a1a; border-radius: 12px;
+  padding: 16px; margin-bottom: 12px;
+}
+.panel h2 { color: #ff8800; font-size: 15px; margin: 0 0 8px; font-weight: 600; }
+
+/* Stack on mobile, two-col only on wide screens. */
+.grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 720px) {
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+}
+
+.field-label {
+  display: block; color: #888; font-size: 11px;
+  margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.input, .select {
+  width: 100%; box-sizing: border-box;
+  background: #0a0a0a; border: 1px solid #222; border-radius: 8px;
+  color: #e0e0e0; font-family: inherit; font-size: 14px;
+  padding: 10px 12px; outline: none;
+}
+.input:focus, .select:focus { border-color: #ff8800; }
+.input-narrow { width: 90px; }
+
+.amount-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #0a0a0a; border: 1px solid #222; border-radius: 8px;
+  padding: 0 12px;
+}
+.amount-row .input { border: none; background: transparent; padding: 12px 0; }
+.amount-sym { color: #ff8800; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.dim { color: #666; font-size: 12px; }
+
+/* Buttons used across page components. */
+.btn-ghost {
+  background: transparent; border: 1px solid #222; color: #ff8800;
+  padding: 8px 14px; border-radius: 8px; font-family: inherit;
+  font-size: 13px; cursor: pointer; transition: border-color 0.15s;
+}
+.btn-ghost:hover { border-color: #ff8800; }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  width: 100%; box-sizing: border-box;
+  background: #ff8800; color: #000; border: none; border-radius: 8px;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  padding: 12px 16px; cursor: pointer; margin-top: 8px;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: #e07700; }
+.btn-primary:disabled { background: #1a1a1a; color: #555; cursor: not-allowed; }
+
+.status {
+  margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+  background: #1a0f00; border: 1px solid #553300; color: #ff8800;
+  font-size: 12px; word-break: break-all;
+}
+
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: #888; font-size: 13px; line-height: 1.6;
+}
+.empty-state code {
+  background: #1a1a1a; color: #ff8800; padding: 2px 6px; border-radius: 4px;
+  font-size: 11px;
+}
+
+/* Stat cards on ONE Overview. */
+.stat-card {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px;
+  padding: 14px;
+}
+.stat-label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-value { color: #ff8800; font-size: 18px; font-weight: 600; margin-top: 4px; }
+
+/* Key-value list on About. */
+.kv { list-style: none; margin: 8px 0; padding: 0; }
+.kv li {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 6px 0; border-bottom: 1px dashed #1a1a1a;
+  font-size: 12px; word-break: break-all;
+}
+.kv li:last-child { border-bottom: none; }
+.kv code { color: #ff8800; font-family: inherit; font-size: 11px; }
+
+/* Data tables (Pools / Portfolio) — horizontally scroll on narrow viewport. */
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  display: block; overflow-x: auto; white-space: nowrap;
+}
+.data-table thead { color: #666; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
+.data-table th, .data-table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #1a1a1a; }
+.data-table tr:hover td { background: #0f0f0f; }
+.data-table a { color: #ff8800; }
+
+.hint { color: #888; font-size: 12px; padding: 8px 0; }

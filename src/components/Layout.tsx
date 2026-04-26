@@ -34,7 +34,7 @@ export function Layout() {
         <NavLink to="/about">About</NavLink>
       </nav>
 
-      <main>
+      <main className="container">
         <Outlet />
       </main>
 
