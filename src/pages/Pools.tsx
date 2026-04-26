@@ -6,8 +6,11 @@ import {
 } from "@mysten/dapp-kit";
 import {
   buildAddLiquidityTx,
+  buildClaimFeesTx,
   buildCreatePoolTx,
+  buildRemoveLiquidityTx,
   listPools,
+  listUserPositions,
   type PoolView,
 } from "../chain/darbitex";
 import { coinLabel, KNOWN_COINS, sortPair } from "../chain/coins";
@@ -15,18 +18,38 @@ import { compactNumber, formatUnits, parseUnits, shortAddr } from "../chain/form
 
 const KNOWN_TYPES = Object.keys(KNOWN_COINS);
 
+interface UserPosition {
+  id: string;
+  poolId: string;
+  shares: bigint;
+  typeA: string;
+  typeB: string;
+}
+
+type RowMode = "add" | "remove";
+interface ExpandedRow {
+  poolId: string;
+  mode: RowMode;
+}
+
 export function PoolsBody() {
   const client = useSuiClient();
+  const account = useCurrentAccount();
   const [pools, setPools] = useState<PoolView[]>([]);
+  const [positions, setPositions] = useState<UserPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [expandedPool, setExpandedPool] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<ExpandedRow | null>(null);
 
   async function refresh() {
     setLoading(true);
     try {
-      const ps = await listPools(client);
+      const [ps, ups] = await Promise.all([
+        listPools(client),
+        account ? listUserPositions(client, account.address) : Promise.resolve([]),
+      ]);
       setPools(ps);
+      setPositions(ups);
     } finally {
       setLoading(false);
     }
@@ -35,9 +58,14 @@ export function PoolsBody() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listPools(client)
-      .then((ps) => {
-        if (!cancelled) setPools(ps);
+    Promise.all([
+      listPools(client),
+      account ? listUserPositions(client, account.address) : Promise.resolve([]),
+    ])
+      .then(([ps, ups]) => {
+        if (cancelled) return;
+        setPools(ps);
+        setPositions(ups);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -45,7 +73,11 @@ export function PoolsBody() {
     return () => {
       cancelled = true;
     };
-  }, [client]);
+  }, [client, account]);
+
+  function positionsForPool(poolId: string): UserPosition[] {
+    return positions.filter((p) => p.poolId === poolId);
+  }
 
   return (
     <div>
@@ -83,7 +115,9 @@ export function PoolsBody() {
           </thead>
           <tbody>
             {pools.map((p) => {
-              const isExpanded = expandedPool === p.poolId;
+              const userPositions = positionsForPool(p.poolId);
+              const hasPosition = userPositions.length > 0;
+              const isExpanded = expanded?.poolId === p.poolId;
               return (
                 <>
                   <tr key={p.poolId}>
@@ -105,22 +139,57 @@ export function PoolsBody() {
                       </a>
                     </td>
                     <td>
-                      <button
-                        className="btn-ghost"
-                        onClick={() =>
-                          setExpandedPool(isExpanded ? null : p.poolId)
-                        }
-                      >
-                        {isExpanded ? "Close" : "Add liquidity"}
-                      </button>
+                      <div className="row" style={{ gap: 4, margin: 0 }}>
+                        <button
+                          className="btn-ghost"
+                          style={{ padding: "6px 10px", fontSize: 11 }}
+                          onClick={() =>
+                            setExpanded(
+                              isExpanded && expanded?.mode === "add"
+                                ? null
+                                : { poolId: p.poolId, mode: "add" },
+                            )
+                          }
+                        >
+                          {isExpanded && expanded?.mode === "add" ? "Close" : "Add"}
+                        </button>
+                        {hasPosition && (
+                          <button
+                            className="btn-ghost"
+                            style={{ padding: "6px 10px", fontSize: 11 }}
+                            onClick={() =>
+                              setExpanded(
+                                isExpanded && expanded?.mode === "remove"
+                                  ? null
+                                  : { poolId: p.poolId, mode: "remove" },
+                              )
+                            }
+                          >
+                            {isExpanded && expanded?.mode === "remove"
+                              ? "Close"
+                              : "Remove"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                  {isExpanded && (
+                  {isExpanded && expanded?.mode === "add" && (
                     <tr key={`${p.poolId}-add`}>
                       <td colSpan={5}>
                         <AddLiquidityForm
                           pool={p}
-                          onAdded={() => { setExpandedPool(null); refresh(); }}
+                          onAdded={() => { setExpanded(null); refresh(); }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  {isExpanded && expanded?.mode === "remove" && hasPosition && (
+                    <tr key={`${p.poolId}-remove`}>
+                      <td colSpan={5}>
+                        <RemoveLiquidityPanel
+                          pool={p}
+                          positions={userPositions}
+                          onChanged={() => { setExpanded(null); refresh(); }}
                         />
                       </td>
                     </tr>
@@ -440,6 +509,102 @@ function AddLiquidityForm({
       >
         {isPending ? "Submitting…" : "Add liquidity"}
       </button>
+      {statusMsg && <div className="status">{statusMsg}</div>}
+    </div>
+  );
+}
+
+function RemoveLiquidityPanel({
+  pool,
+  positions,
+  onChanged,
+}: {
+  pool: PoolView;
+  positions: UserPosition[];
+  onChanged: () => void;
+}) {
+  const { mutateAsync: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  async function onClaim(positionId: string) {
+    setStatusMsg(null);
+    try {
+      const tx = buildClaimFeesTx(pool, positionId, BigInt(Date.now() + 60_000));
+      const res = await signAndExecute({ transaction: tx });
+      setStatusMsg(`Claimed — ${res.digest.slice(0, 10)}…`);
+      onChanged();
+    } catch (e) {
+      setStatusMsg((e as Error).message);
+    }
+  }
+
+  async function onRemove(positionId: string) {
+    setStatusMsg(null);
+    try {
+      const tx = buildRemoveLiquidityTx({
+        pool,
+        positionId,
+        minA: 0n,
+        minB: 0n,
+        deadlineMs: BigInt(Date.now() + 60_000),
+      });
+      const res = await signAndExecute({ transaction: tx });
+      setStatusMsg(`Removed — ${res.digest.slice(0, 10)}…`);
+      onChanged();
+    } catch (e) {
+      setStatusMsg((e as Error).message);
+    }
+  }
+
+  return (
+    <div style={{ padding: "12px 0" }}>
+      <p className="dim">
+        Move's <code>remove_liquidity_entry</code> burns the entire LP
+        position by value — partial removal is not supported. To keep some
+        liquidity, withdraw all and re-add only the part you want to keep.
+      </p>
+      {positions.map((pos) => (
+        <div
+          key={pos.id}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 0",
+            borderTop: "1px dashed #1a1a1a",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div className="dim" style={{ fontSize: 11 }}>position</div>
+            <code style={{ color: "#ff8800", fontSize: 11 }}>
+              {pos.id.slice(0, 10)}…{pos.id.slice(-6)}
+            </code>
+            <div className="dim" style={{ fontSize: 11 }}>
+              {pos.shares.toString()} shares
+            </div>
+          </div>
+          <div className="row" style={{ gap: 6, margin: 0 }}>
+            <button
+              className="btn-ghost"
+              style={{ padding: "6px 10px", fontSize: 11 }}
+              disabled={isPending}
+              onClick={() => onClaim(pos.id)}
+            >
+              Claim fees
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ padding: "6px 10px", fontSize: 11 }}
+              disabled={isPending}
+              onClick={() => onRemove(pos.id)}
+            >
+              Remove 100%
+            </button>
+          </div>
+        </div>
+      ))}
       {statusMsg && <div className="status">{statusMsg}</div>}
     </div>
   );
