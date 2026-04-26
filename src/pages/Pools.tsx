@@ -153,23 +153,20 @@ export function PoolsBody() {
                         >
                           {isExpanded && expanded?.mode === "add" ? "Close" : "Add"}
                         </button>
-                        {hasPosition && (
-                          <button
-                            className="btn-ghost"
-                            style={{ padding: "6px 10px", fontSize: 11 }}
-                            onClick={() =>
-                              setExpanded(
-                                isExpanded && expanded?.mode === "remove"
-                                  ? null
-                                  : { poolId: p.poolId, mode: "remove" },
-                              )
-                            }
-                          >
-                            {isExpanded && expanded?.mode === "remove"
-                              ? "Close"
-                              : "Remove"}
-                          </button>
-                        )}
+                        <button
+                          className="btn-ghost"
+                          style={{ padding: "6px 10px", fontSize: 11 }}
+                          onClick={() =>
+                            setExpanded(
+                              isExpanded && expanded?.mode === "remove"
+                                ? null
+                                : { poolId: p.poolId, mode: "remove" },
+                            )
+                          }
+                          title={hasPosition ? undefined : "no positions in this pool"}
+                        >
+                          {isExpanded && expanded?.mode === "remove" ? "Close" : "Remove"}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -183,14 +180,25 @@ export function PoolsBody() {
                       </td>
                     </tr>
                   )}
-                  {isExpanded && expanded?.mode === "remove" && hasPosition && (
+                  {isExpanded && expanded?.mode === "remove" && (
                     <tr key={`${p.poolId}-remove`}>
                       <td colSpan={5}>
-                        <RemoveLiquidityPanel
-                          pool={p}
-                          positions={userPositions}
-                          onChanged={() => { setExpanded(null); refresh(); }}
-                        />
+                        {hasPosition ? (
+                          <RemoveLiquidityPanel
+                            pool={p}
+                            positions={userPositions}
+                            onChanged={() => { setExpanded(null); refresh(); }}
+                          />
+                        ) : (
+                          <div className="empty-state" style={{ padding: 16 }}>
+                            <p>You have no LP positions in this pool.</p>
+                            <p className="dim">
+                              {account
+                                ? "Positions are stored as Sui objects on the connected wallet — only the wallet that added liquidity can remove it."
+                                : "Connect a wallet to see your positions."}
+                            </p>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
