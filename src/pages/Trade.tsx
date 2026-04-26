@@ -26,7 +26,17 @@ export function TradePage() {
   const [fromType, setFromType] = useState(KNOWN_TYPES[0]);
   const [toType, setToType] = useState(KNOWN_TYPES[1] ?? KNOWN_TYPES[0]);
   const [amountInStr, setAmountInStr] = useState("");
-  const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS);
+  // Slippage is stored + edited as a percent string for display, then
+  // converted to basis points (× 100) when sized into minOut. UI default
+  // 0.5% matches DEFAULT_SLIPPAGE_BPS = 50.
+  const [slippagePctStr, setSlippagePctStr] = useState(
+    (DEFAULT_SLIPPAGE_BPS / 100).toString(),
+  );
+  const slippageBps = useMemo(() => {
+    const pct = Number(slippagePctStr);
+    if (!isFinite(pct) || pct <= 0) return DEFAULT_SLIPPAGE_BPS;
+    return Math.max(1, Math.min(10_000, Math.round(pct * 100)));
+  }, [slippagePctStr]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [balances, setBalances] = useState<Record<string, bigint>>({});
 
@@ -301,14 +311,13 @@ export function TradePage() {
                 <input
                   className="input input-narrow"
                   type="number"
-                  value={slippageBps}
-                  min={1}
-                  max={1000}
-                  onChange={(e) =>
-                    setSlippageBps(Math.max(1, Number(e.target.value)))
-                  }
+                  step="0.1"
+                  min="0.01"
+                  max="50"
+                  value={slippagePctStr}
+                  onChange={(e) => setSlippagePctStr(e.target.value)}
                 />{" "}
-                bps ({(slippageBps / 100).toFixed(2)}%)
+                %
               </span>
             </div>
             <div className="quote-row">
