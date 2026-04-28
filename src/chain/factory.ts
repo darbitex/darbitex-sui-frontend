@@ -1,5 +1,7 @@
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
+import { bcs } from "@mysten/sui/bcs";
+import { loadOtwTemplateBytes } from "./otwTemplate";
 import {
   D_COIN_TYPE,
   D_REGISTRY,
@@ -120,6 +122,82 @@ export function feeForSymbol(symbol: string): bigint {
   if (len === 3) return TF_FEE_RAW[3];
   if (len === 4) return TF_FEE_RAW[4];
   return TF_FEE_RAW[5];
+}
+
+// === In-browser OTW publish (wizard v2) ===
+
+// Lazy-loaded WASM bytecode-template module. The wasm is ~344KB raw; we load
+// it on first use only (Step 2 of the wizard) so the Trade/Liquidity/D pages
+// don't pay the cost.
+let _bytecodeTemplate:
+  | typeof import("@mysten/move-bytecode-template")
+  | null = null;
+
+async function loadBytecodeTemplate() {
+  if (_bytecodeTemplate) return _bytecodeTemplate;
+  const mod = await import("@mysten/move-bytecode-template");
+  // The web build needs explicit init with the wasm URL. Vite serves the
+  // wasm asset via its bundler — we resolve the URL relative to the
+  // package's index.mjs through ?url import.
+  const wasmUrl = (
+    await import(
+      "@mysten/move-bytecode-template/web/move_bytecode_template_bg.wasm?url"
+    )
+  ).default as string;
+  await mod.default(wasmUrl);
+  _bytecodeTemplate = mod;
+  return mod;
+}
+
+// Mutate the template TEMPLATE.mv into a launch-ready package for `symbol`.
+// Two passes:
+//   1. update_identifiers — rename the OTW struct + module name TEMPLATE
+//      to the user's uppercase symbol (e.g. MYTOKEN). The lower-case
+//      Move.toml address alias is not in the bytecode (resolved as the
+//      package's own integer address at publish, then assigned by Sui).
+//   2. update_constants — replace the BCS-encoded vector<u8> "TEMPLATE"
+//      (constant pool [0], the symbol passed to coin_registry) with the
+//      user's display-case symbol bytes. Other constants ("placeholder"
+//      for name + desc, the icon placeholder) are overwritten by the
+//      factory at launch via MetadataCap, so we leave them.
+export async function buildOtwBytecode(symbol: string): Promise<Uint8Array> {
+  const tpl = await loadBytecodeTemplate();
+  const upper = otwIdentifier(symbol);
+  let bytes = loadOtwTemplateBytes();
+  bytes = tpl.update_identifiers(bytes, { TEMPLATE: upper });
+  const oldSymbol = bcs
+    .vector(bcs.u8())
+    .serialize(Array.from(new TextEncoder().encode("TEMPLATE")))
+    .toBytes();
+  const newSymbol = bcs
+    .vector(bcs.u8())
+    .serialize(Array.from(new TextEncoder().encode(symbol)))
+    .toBytes();
+  bytes = tpl.update_constants(bytes, newSymbol, oldSymbol, "Vector(U8)");
+  return bytes;
+}
+
+// Build a Transaction that publishes the mutated OTW bytecode. The
+// publishing wallet ends up owning TreasuryCap, MetadataCap, UpgradeCap;
+// Currency<T> is sent as Receiving to 0xc by the OTW init body.
+export async function buildOtwPublishTx(
+  sender: string,
+  symbol: string,
+): Promise<Transaction> {
+  const bytes = await buildOtwBytecode(symbol);
+  const tx = new Transaction();
+  // Dependencies are the on-chain framework packages the OTW imports
+  // (resolved by Move build at compile time): MoveStdlib + Sui framework.
+  // Their addresses are well-known mainnet constants.
+  const [upgradeCap] = tx.publish({
+    modules: [Array.from(bytes)],
+    dependencies: [
+      "0x0000000000000000000000000000000000000000000000000000000000000001", // MoveStdlib
+      "0x0000000000000000000000000000000000000000000000000000000000000002", // Sui framework
+    ],
+  });
+  tx.transferObjects([upgradeCap], sender);
+  return tx;
 }
 
 // Sui's OTW rule: the witness struct's name MUST be the all-uppercase

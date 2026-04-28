@@ -5,3 +5,6 @@ dist
 .env
 .env.local
 .vite
+
+# Sui Move build artifacts (regenerable; only Move.toml/Move.lock/sources/ are committed)
+scripts/**/build/

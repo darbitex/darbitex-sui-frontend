@@ -8,6 +8,7 @@ import { WalletBalances } from "../components/WalletBalances";
 import {
   buildFinalizeRegistrationTx,
   buildLaunchTx,
+  buildOtwPublishTx,
   feeForSymbol,
   generateMoveToml,
   generateOtwSource,
@@ -191,6 +192,36 @@ export function FactoryPage() {
     }
   }
 
+  // In-browser OTW publish via @mysten/move-bytecode-template. Mutates a
+  // precompiled TEMPLATE.mv (struct + symbol-string), wraps it in a
+  // tx.publish, signs via the connected wallet, then auto-extracts caps
+  // from the resulting tx's objectChanges (same path the CLI fallback
+  // uses) and advances to the finalize step.
+  const [browserPublishing, setBrowserPublishing] = useState(false);
+  async function onPublishInBrowser() {
+    if (!account || !symbol || formError) return;
+    setStatusMsg(null);
+    setParseError(null);
+    setBrowserPublishing(true);
+    try {
+      const tx = await buildOtwPublishTx(account.address, symbol);
+      const res = await signAndExecute({ transaction: tx });
+      // Wait for indexing so the follow-up getTransactionBlock can read
+      // objectChanges. signAndExecute returns once the validator quorum
+      // signs, but RPC nodes lag a moment.
+      await client.waitForTransaction({ digest: res.digest });
+      setStatusMsg(`OTW published — ${res.digest.slice(0, 10)}…`);
+      const ex = await parsePublishTx(client, res.digest, symbol);
+      setExtract(ex);
+      setPublishDigest(res.digest);
+      setStep("finalize");
+    } catch (e) {
+      setParseError((e as Error).message);
+    } finally {
+      setBrowserPublishing(false);
+    }
+  }
+
   async function onFinalize() {
     if (!extract || !account) return;
     setStatusMsg(null);
@@ -267,21 +298,34 @@ export function FactoryPage() {
       <div className="panel">
         <h2>How this works</h2>
         <p className="dim">
-          A token launch needs <strong>3 transactions</strong>. They cannot
-          be merged into a single PTB — see <em>Why not 1 PTB?</em> below.
+          A token launch needs <strong>3 wallet signatures</strong>. They
+          cannot be merged into a single PTB — see <em>Why not 1 PTB?</em>{" "}
+          below. All three are signed via your connected browser wallet —
+          no CLI required.
         </p>
         <ul className="kv" style={{ fontSize: 12 }}>
           <li>
             <span className="dim">Tx1 — Publish OTW</span>
             <span>
-              Run <code>sui client publish</code> from your terminal on the
-              <code> {symbol ? otwIdentifier(symbol) : "SYMBOL"}.move</code>{" "}
-              + <code>Move.toml</code> we generate. Sui's One-Time-Witness
-              rule requires this; the OTW struct can only be constructed
-              inside that package's <code>init</code> function. Outputs:
-              <code> Currency&lt;T&gt;</code> (sent as Receiving to <code>0xc</code>),
-              <code> TreasuryCap&lt;T&gt;</code>, <code>MetadataCap&lt;T&gt;</code>,
-              <code> UpgradeCap</code>. ≈ 0.05 SUI gas.
+              This page loads a precompiled <code>TEMPLATE.mv</code> Move
+              bytecode (built once from{" "}
+              <code>scripts/otw-template/</code>), runs two
+              <code> @mysten/move-bytecode-template</code> WASM mutations
+              in your browser — rename identifier{" "}
+              <code>TEMPLATE</code> →{" "}
+              <code>{symbol ? otwIdentifier(symbol) : "MYTOKEN"}</code>{" "}
+              (the OTW witness struct + module name) and replace the
+              constant-pool symbol bytes <code>"TEMPLATE"</code> →{" "}
+              <code>"{symbol || "MyToken"}"</code> — then submits a Sui{" "}
+              <code>tx.publish</code> via your wallet. Sui's One-Time-Witness
+              rule requires the witness type to live in its own package, so
+              this step must always be a <em>publish</em> kind tx, never a
+              regular Move call. Outputs: <code>Currency&lt;T&gt;</code>{" "}
+              (sent as <code>Receiving</code> to <code>0xc</code>),{" "}
+              <code>TreasuryCap&lt;T&gt;</code>,{" "}
+              <code>MetadataCap&lt;T&gt;</code>, <code>UpgradeCap</code>.
+              ≈ 0.05 SUI gas. A CLI fallback is available under Step 2 if
+              you'd rather inspect + compile the Move source yourself.
             </span>
           </li>
           <li>
@@ -312,7 +356,10 @@ export function FactoryPage() {
           <p className="dim" style={{ fontSize: 12 }}>
             <strong>Tx1 cannot be a PTB call.</strong> A package publish is
             its own transaction kind — PTBs are sequences of Move calls
-            against existing packages and cannot upload new bytecode.
+            against existing packages and cannot upload new bytecode. This
+            is true whether the publish runs from CLI or from in-browser
+            bytecode mutation; both produce the same Sui <em>publish</em>{" "}
+            transaction kind.
             <br />
             <br />
             <strong>Tx2 and Tx3 cannot be merged either.</strong> Sui PTBs
@@ -324,7 +371,7 @@ export function FactoryPage() {
             simultaneously reference the same object as both Receiving (for
             Tx2) and Shared-mut (for Tx3). The factory's <code>launch</code>{" "}
             entry takes <code>&amp;mut Currency&lt;T&gt;</code>, which only
-            resolves once the object is shared. Two transactions are the
+            resolves once the object is shared. Three transactions are the
             architectural minimum.
           </p>
         </details>
@@ -538,66 +585,93 @@ export function FactoryPage() {
         <div className="panel">
           <h2>2. Publish the OTW package</h2>
           <p className="dim">
-            Sui Move source compilation happens in your local toolchain.
-            Download the two files below into an empty folder, then run
-            <code> sui client publish --gas-budget 200000000 --json &gt; publish.json </code>
-            from that folder. Make sure the wallet you publish from is the
-            same one you connected here ({account ? shortAddr(account.address) : "—"}).
-            After publish, paste the tx digest below.
+            One click: this page mutates a precompiled OTW template
+            (renames the witness struct + module name to{" "}
+            <code>{otwIdentifier(symbol)}</code> and patches the symbol
+            string to <code>{symbol}</code>) and submits a publish tx via
+            your wallet. No CLI, no terminal, no Move toolchain. ~0.05 SUI
+            gas.
           </p>
-          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-            <button
-              className="btn-ghost"
-              onClick={() => downloadFile(`${otwIdentifier(symbol)}.move`, moveSrc)}
-            >
-              Download {otwIdentifier(symbol)}.move
-            </button>
-            <button
-              className="btn-ghost"
-              onClick={() => downloadFile("Move.toml", moveToml)}
-            >
-              Download Move.toml
-            </button>
-            <button className="btn-ghost" onClick={() => copy(moveSrc)}>
-              Copy {otwIdentifier(symbol)}.move
-            </button>
-            <button className="btn-ghost" onClick={() => copy(moveToml)}>
-              Copy Move.toml
-            </button>
-          </div>
-          <details style={{ marginTop: 8 }}>
-            <summary className="dim">Show generated {otwIdentifier(symbol)}.move</summary>
-            <pre className="code-block">{moveSrc}</pre>
-          </details>
-          <details>
-            <summary className="dim">Show Move.toml</summary>
-            <pre className="code-block">{moveToml}</pre>
-          </details>
+          <button
+            className="btn-primary"
+            onClick={onPublishInBrowser}
+            disabled={browserPublishing || isPending || !account}
+            style={{ width: "100%", padding: "14px 20px", fontSize: 14 }}
+          >
+            {browserPublishing
+              ? "Mutating bytecode + signing…"
+              : isPending
+                ? "Submitting…"
+                : `Publish ${otwIdentifier(symbol)} OTW (in-browser)`}
+          </button>
 
-          <label className="field-label" style={{ marginTop: 12 }}>
-            Publish tx digest
-          </label>
-          <input
-            className="input"
-            value={publishDigest}
-            onChange={(e) => setPublishDigest(e.target.value)}
-            placeholder="3xPq…"
-            style={{ fontFamily: "monospace", fontSize: 12 }}
-          />
-          <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
-            <span className="dim">
-              {extract
-                ? `OTW pkg: ${shortAddr(extract.otwPackageId)}`
-                : "Extracts caps + Currency<T> from your publish tx."}
-            </span>
-            <button
-              className="btn-primary"
-              onClick={onParsePublish}
-              disabled={parsing || !publishDigest.trim()}
-            >
-              {parsing ? "Reading tx…" : "Verify publish"}
-            </button>
-          </div>
+          <details style={{ marginTop: 16 }}>
+            <summary className="dim" style={{ fontSize: 12 }}>
+              Or publish manually via <code>sui client publish</code> CLI
+            </summary>
+            <p className="dim" style={{ fontSize: 12, marginTop: 6 }}>
+              Useful if you've already published the OTW package or you'd
+              rather inspect the Move source first. Download the two
+              files below into an empty folder, run{" "}
+              <code>sui client publish --gas-budget 200000000 --json</code>{" "}
+              from that folder, then paste the digest. Make sure the
+              publisher wallet is the same one you connected here ({" "}
+              {account ? shortAddr(account.address) : "—"}).
+            </p>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn-ghost"
+                onClick={() => downloadFile(`${otwIdentifier(symbol)}.move`, moveSrc)}
+              >
+                Download {otwIdentifier(symbol)}.move
+              </button>
+              <button
+                className="btn-ghost"
+                onClick={() => downloadFile("Move.toml", moveToml)}
+              >
+                Download Move.toml
+              </button>
+              <button className="btn-ghost" onClick={() => copy(moveSrc)}>
+                Copy {otwIdentifier(symbol)}.move
+              </button>
+              <button className="btn-ghost" onClick={() => copy(moveToml)}>
+                Copy Move.toml
+              </button>
+            </div>
+            <details style={{ marginTop: 8 }}>
+              <summary className="dim">Show generated {otwIdentifier(symbol)}.move</summary>
+              <pre className="code-block">{moveSrc}</pre>
+            </details>
+            <details>
+              <summary className="dim">Show Move.toml</summary>
+              <pre className="code-block">{moveToml}</pre>
+            </details>
+
+            <label className="field-label" style={{ marginTop: 12 }}>
+              Publish tx digest
+            </label>
+            <input
+              className="input"
+              value={publishDigest}
+              onChange={(e) => setPublishDigest(e.target.value)}
+              placeholder="3xPq…"
+              style={{ fontFamily: "monospace", fontSize: 12 }}
+            />
+            <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
+              <span className="dim">
+                {extract
+                  ? `OTW pkg: ${shortAddr(extract.otwPackageId)}`
+                  : "Extracts caps + Currency<T> from your publish tx."}
+              </span>
+              <button
+                className="btn-ghost"
+                onClick={onParsePublish}
+                disabled={parsing || !publishDigest.trim()}
+              >
+                {parsing ? "Reading tx…" : "Verify publish"}
+              </button>
+            </div>
+          </details>
           {parseError && <div className="status">{parseError}</div>}
         </div>
       )}
