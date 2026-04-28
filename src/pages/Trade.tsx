@@ -11,6 +11,7 @@ import {
   type PoolView,
 } from "../chain/darbitex";
 import { coinLabel, KNOWN_COINS, sortPair } from "../chain/coins";
+import { TokenIcon } from "../components/TokenIcon";
 import { formatUnits, parseUnits } from "../chain/format";
 import { DEFAULT_SLIPPAGE_BPS, DARBITEX_SWAP_FEE_BPS } from "../config";
 
@@ -188,17 +189,27 @@ export function TradePage() {
             </span>
           )}
         </div>
-        <select
-          className="select"
-          value={fromType}
-          onChange={(e) => setFromType(e.target.value)}
-        >
-          {KNOWN_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {coinLabel(t)}
-            </option>
-          ))}
-        </select>
+        <div className="token-select-with-icon">
+          <TokenIcon
+            token={{
+              symbol: coinLabel(fromType),
+              iconUrl: KNOWN_COINS[fromType]?.iconUrl,
+            }}
+            size={20}
+          />
+          <select
+            className="select"
+            value={fromType}
+            onChange={(e) => setFromType(e.target.value)}
+            style={{ flex: 1 }}
+          >
+            {KNOWN_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {coinLabel(t)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="amount-row">
           <input
             className="input"
@@ -219,7 +230,13 @@ export function TradePage() {
               max
             </button>
           )}
-          <span className="amount-sym">{coinLabel(fromType)}</span>
+          <span className="amount-sym">
+            <TokenIcon
+              token={{ symbol: coinLabel(fromType), iconUrl: KNOWN_COINS[fromType]?.iconUrl }}
+              size={14}
+            />{" "}
+            {coinLabel(fromType)}
+          </span>
         </div>
 
         <div className="row" style={{ justifyContent: "center", margin: "8px 0" }}>
@@ -237,17 +254,27 @@ export function TradePage() {
             </span>
           )}
         </div>
-        <select
-          className="select"
-          value={toType}
-          onChange={(e) => setToType(e.target.value)}
-        >
-          {KNOWN_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {coinLabel(t)}
-            </option>
-          ))}
-        </select>
+        <div className="token-select-with-icon">
+          <TokenIcon
+            token={{
+              symbol: coinLabel(toType),
+              iconUrl: KNOWN_COINS[toType]?.iconUrl,
+            }}
+            size={20}
+          />
+          <select
+            className="select"
+            value={toType}
+            onChange={(e) => setToType(e.target.value)}
+            style={{ flex: 1 }}
+          >
+            {KNOWN_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {coinLabel(t)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="amount-row">
           <input
             className="input"
@@ -255,7 +282,13 @@ export function TradePage() {
             readOnly
             placeholder="—"
           />
-          <span className="amount-sym">{coinLabel(toType)}</span>
+          <span className="amount-sym">
+            <TokenIcon
+              token={{ symbol: coinLabel(toType), iconUrl: KNOWN_COINS[toType]?.iconUrl }}
+              size={14}
+            />{" "}
+            {coinLabel(toType)}
+          </span>
         </div>
 
         {fromType === toType && (

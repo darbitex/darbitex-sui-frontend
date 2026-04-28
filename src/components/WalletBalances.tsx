@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { coinLabel, KNOWN_COINS } from "../chain/coins";
 import { formatUnits } from "../chain/format";
+import { TokenIcon } from "./TokenIcon";
 
 interface Props {
   // Coin types to display. Defaults to every entry in KNOWN_COINS.
@@ -50,6 +51,7 @@ export function WalletBalances({ types }: Props) {
         if (!meta) return null;
         return (
           <div key={t} className="balance-chip">
+            <TokenIcon token={{ symbol: meta.symbol, iconUrl: meta.iconUrl }} size={14} />
             <span className="dim">{coinLabel(t)}</span>{" "}
             <span>{formatUnits(balances[t] ?? 0n, meta.decimals)}</span>
           </div>

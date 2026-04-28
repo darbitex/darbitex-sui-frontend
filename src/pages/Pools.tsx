@@ -14,6 +14,7 @@ import {
   type PoolView,
 } from "../chain/darbitex";
 import { coinLabel, KNOWN_COINS, sortPair } from "../chain/coins";
+import { TokenIcon } from "../components/TokenIcon";
 import { compactNumber, formatUnits, parseUnits, shortAddr } from "../chain/format";
 
 const KNOWN_TYPES = Object.keys(KNOWN_COINS);
@@ -122,7 +123,25 @@ export function PoolsBody() {
                 <>
                   <tr key={p.poolId}>
                     <td>
-                      {coinLabel(p.typeA)} / {coinLabel(p.typeB)}
+                      <span className="pair-with-icons">
+                        <TokenIcon
+                          token={{
+                            symbol: coinLabel(p.typeA),
+                            iconUrl: KNOWN_COINS[p.typeA]?.iconUrl,
+                          }}
+                          size={20}
+                        />
+                        <TokenIcon
+                          token={{
+                            symbol: coinLabel(p.typeB),
+                            iconUrl: KNOWN_COINS[p.typeB]?.iconUrl,
+                          }}
+                          size={20}
+                        />
+                        <span style={{ marginLeft: 4 }}>
+                          {coinLabel(p.typeA)} / {coinLabel(p.typeB)}
+                        </span>
+                      </span>
                     </td>
                     <td>
                       {compactNumber(p.reserveA, KNOWN_COINS[p.typeA]?.decimals ?? 9)} /{" "}
@@ -309,17 +328,24 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
             <label className="field-label" style={{ margin: 0 }}>Coin A</label>
             <span className="dim">bal: {formatUnits(balA, decimalsA)}</span>
           </div>
-          <select
-            className="select"
-            value={typeA}
-            onChange={(e) => setTypeA(e.target.value)}
-          >
-            {KNOWN_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {coinLabel(t)}
-              </option>
-            ))}
-          </select>
+          <div className="token-select-with-icon">
+            <TokenIcon
+              token={{ symbol: coinLabel(typeA), iconUrl: KNOWN_COINS[typeA]?.iconUrl }}
+              size={20}
+            />
+            <select
+              className="select"
+              value={typeA}
+              onChange={(e) => setTypeA(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              {KNOWN_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {coinLabel(t)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="amount-row">
             <input
               className="input"
@@ -328,7 +354,13 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
               placeholder="0.0"
               inputMode="decimal"
             />
-            <span className="amount-sym">{coinLabel(typeA)}</span>
+            <span className="amount-sym">
+              <TokenIcon
+                token={{ symbol: coinLabel(typeA), iconUrl: KNOWN_COINS[typeA]?.iconUrl }}
+                size={14}
+              />{" "}
+              {coinLabel(typeA)}
+            </span>
             {balA > 0n && (
               <button
                 type="button"
@@ -347,17 +379,24 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
             <label className="field-label" style={{ margin: 0 }}>Coin B</label>
             <span className="dim">bal: {formatUnits(balB, decimalsB)}</span>
           </div>
-          <select
-            className="select"
-            value={typeB}
-            onChange={(e) => setTypeB(e.target.value)}
-          >
-            {KNOWN_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {coinLabel(t)}
-              </option>
-            ))}
-          </select>
+          <div className="token-select-with-icon">
+            <TokenIcon
+              token={{ symbol: coinLabel(typeB), iconUrl: KNOWN_COINS[typeB]?.iconUrl }}
+              size={20}
+            />
+            <select
+              className="select"
+              value={typeB}
+              onChange={(e) => setTypeB(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              {KNOWN_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {coinLabel(t)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="amount-row">
             <input
               className="input"
@@ -366,7 +405,13 @@ function CreatePoolForm({ onCreated }: { onCreated: () => void }) {
               placeholder="0.0"
               inputMode="decimal"
             />
-            <span className="amount-sym">{coinLabel(typeB)}</span>
+            <span className="amount-sym">
+              <TokenIcon
+                token={{ symbol: coinLabel(typeB), iconUrl: KNOWN_COINS[typeB]?.iconUrl }}
+                size={14}
+              />{" "}
+              {coinLabel(typeB)}
+            </span>
             {balB > 0n && (
               <button
                 type="button"

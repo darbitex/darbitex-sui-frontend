@@ -1316,8 +1316,41 @@ a:hover { text-decoration: underline; }
 .balance-chip {
   background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px;
   padding: 6px 10px; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 .balance-chip span:last-child { color: #ff8800; font-weight: 600; }
+
+/* Token-icon component (matches Aptos sibling design language). */
+.token-icon {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.token-icon-fallback {
+  background: #1a1a1a;
+  color: #ff8800;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #333;
+  font-family: inherit;
+}
+/* Wrapper around a <select> so the selected coin's icon sits inline left. */
+.token-select-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Two-token layout (e.g. pool list "SUI / USDC") with overlapping icons. */
+.pair-with-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pair-with-icons .token-icon:not(:first-child) {
+  margin-left: -8px;
+  box-shadow: 0 0 0 1px #0a0a0a;
+}
 
 /* Inline warning box (used on the Factory wizard's icon-upload field). */
 .warning-box {

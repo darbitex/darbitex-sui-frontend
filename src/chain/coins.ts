@@ -32,9 +32,9 @@ export function normalizeType(t: string): string {
 // whether the lookup string came from a Move event, from `config.ts`,
 // or from a user-typed type string.
 const RAW_COINS: CoinInfo[] = [
-  { type: SUI_COIN_TYPE, symbol: "SUI", decimals: SUI_DECIMALS },
-  { type: USDC_COIN_TYPE, symbol: "USDC", decimals: USDC_DECIMALS },
-  { type: D_COIN_TYPE, symbol: "D", decimals: D_DECIMALS },
+  { type: SUI_COIN_TYPE, symbol: "SUI", decimals: SUI_DECIMALS, iconUrl: "/tokens/sui.svg" },
+  { type: USDC_COIN_TYPE, symbol: "USDC", decimals: USDC_DECIMALS, iconUrl: "/tokens/usdc.svg" },
+  { type: D_COIN_TYPE, symbol: "D", decimals: D_DECIMALS, iconUrl: "/tokens/d.svg" },
 ];
 
 export const KNOWN_COINS: Record<string, CoinInfo> = Object.fromEntries(

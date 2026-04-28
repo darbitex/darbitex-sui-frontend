@@ -372,10 +372,7 @@ export function FactoryPage() {
         <p className="dim">
           Decimals are locked at 9. Total supply is fixed at 1B. Symbol must be
           ASCII-printable, 1–32 bytes, AND a valid Move identifier (so the
-          generated OTW source compiles). Sui's OTW rule forces the witness
-          struct + module name to be the all-uppercase form of your symbol;
-          your display-case symbol is preserved in the on-chain Currency
-          metadata{symbol ? ` (will be rendered as "${symbol}")` : ""}.
+          generated OTW source compiles).
         </p>
         <label className="field-label">Symbol</label>
         <input
@@ -401,6 +398,36 @@ export function FactoryPage() {
                   : ""}
           </span>
         </div>
+        {symbol && !formError && (
+          <div className="warning-box" style={{ fontSize: 11 }}>
+            <strong>Auto-generated identifiers</strong> (you don't need to
+            edit anything — the wizard handles all of this for you):
+            <ul className="kv" style={{ margin: "4px 0 0", fontSize: 11 }}>
+              <li>
+                <span className="dim">Display symbol</span>
+                <code>{symbol}</code>
+              </li>
+              <li>
+                <span className="dim">OTW struct + module</span>
+                <code>{otwIdentifier(symbol)}</code>
+              </li>
+              <li>
+                <span className="dim">Move package alias</span>
+                <code>{symbol.toLowerCase()}</code>
+              </li>
+              <li>
+                <span className="dim">Source filename</span>
+                <code>{otwIdentifier(symbol)}.move</code>
+              </li>
+            </ul>
+            Sui's One-Time-Witness rule requires the struct name to equal
+            the uppercase form of the module name — the generator emits{" "}
+            <code>{otwIdentifier(symbol)}</code> in the .move file
+            regardless of how you cased the symbol. Your display-case
+            symbol <code>{symbol}</code> still goes into the Currency's
+            on-chain metadata and is what wallets show.
+          </div>
+        )}
         <label className="field-label">Name</label>
         <input
           className="input"

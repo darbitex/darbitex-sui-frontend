@@ -92,6 +92,29 @@ export function OneDonate() {
 
   return (
     <div>
+      <div className="warning-box">
+        <strong>Donations are permanent and irrevocable.</strong> No admin
+        extraction path exists — you cannot withdraw what you donate. Treat
+        both forms as one-way commitments to the D protocol.
+        <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+          <li>
+            <strong>D → SP:</strong> economically equivalent to a{" "}
+            <strong>burn</strong>. Donated D joins <code>sp_pool</code> and is
+            consumed pro-rata in every future liquidation; the underlying D
+            supply gets <code>coin::burn</code>'d as part of the absorbed-debt
+            math, gradually retiring your contribution from circulating
+            supply over time.
+          </li>
+          <li>
+            <strong>SUI → Reserve:</strong> permanently leaves your wallet
+            but is <em>not</em> burned — the SUI sits in{" "}
+            <code>reserve_coll</code> and flows out to anyone who burns D
+            against the reserve via <code>redeem_from_reserve</code>.
+            Effectively a one-way subsidy to D peg-defenders.
+          </li>
+        </ul>
+      </div>
+
       <div className="grid-2">
         <div className="stat-card">
           <div className="stat-label">D donated to SP (lifetime)</div>
