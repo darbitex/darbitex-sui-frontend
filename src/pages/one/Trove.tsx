@@ -9,13 +9,13 @@ import {
   buildOpenTroveTx,
   readTrove,
   type TroveView,
-} from "../../chain/one";
+} from "../../chain/d";
 import { compactNumber, formatUnits, parseUnits } from "../../chain/format";
 import { useCoinBalance } from "../../chain/useBalance";
 import {
-  ONE_COIN_TYPE,
-  ONE_DECIMALS,
-  ONE_MIN_DEBT,
+  D_COIN_TYPE,
+  D_DECIMALS,
+  D_MIN_DEBT,
   SUI_COIN_TYPE,
   SUI_DECIMALS,
 } from "../../config";
@@ -33,7 +33,7 @@ export function OneTrove() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const suiBal = useCoinBalance(SUI_COIN_TYPE, statusMsg);
-  const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
+  const dBal = useCoinBalance(D_COIN_TYPE, statusMsg);
 
   useEffect(() => {
     if (!account) return;
@@ -60,7 +60,7 @@ export function OneTrove() {
   }, [collStr]);
   const borrowAmount = useMemo(() => {
     try {
-      return parseUnits(borrowStr || "0", ONE_DECIMALS);
+      return parseUnits(borrowStr || "0", D_DECIMALS);
     } catch {
       return 0n;
     }
@@ -79,8 +79,8 @@ export function OneTrove() {
   }
 
   async function onOpen() {
-    if (!account || collAmount === 0n || borrowAmount < ONE_MIN_DEBT) {
-      setStatusMsg(`Borrow must be at least ${formatUnits(ONE_MIN_DEBT, ONE_DECIMALS)} ONE.`);
+    if (!account || collAmount === 0n || borrowAmount < D_MIN_DEBT) {
+      setStatusMsg(`Borrow must be at least ${formatUnits(D_MIN_DEBT, D_DECIMALS)} D.`);
       return;
     }
     setStatusMsg(null);
@@ -128,7 +128,7 @@ export function OneTrove() {
             </div>
             <div className="row">
               <span className="dim">Debt</span>
-              <span>{compactNumber(trove.debt, ONE_DECIMALS)} ONE</span>
+              <span>{compactNumber(trove.debt, D_DECIMALS)} D</span>
             </div>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <label className="field-label" style={{ margin: 0 }}>Add collateral (SUI)</label>
@@ -190,8 +190,8 @@ export function OneTrove() {
           <span className="amount-sym">SUI</span>
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <label className="field-label" style={{ margin: 0 }}>Borrow (ONE)</label>
-          <span className="dim">bal: {formatUnits(oneBal, ONE_DECIMALS)}</span>
+          <label className="field-label" style={{ margin: 0 }}>Borrow (D)</label>
+          <span className="dim">bal: {formatUnits(dBal, D_DECIMALS)}</span>
         </div>
         <div className="amount-row">
           <input
@@ -201,10 +201,10 @@ export function OneTrove() {
             placeholder="0.0"
             inputMode="decimal"
           />
-          <span className="amount-sym">ONE</span>
+          <span className="amount-sym">D</span>
         </div>
         <p className="dim">
-          Min debt: 1 ONE. Min CR: 200%. 1% mint fee charged on top of borrow.
+          Min debt: 1 D. Min CR: 200%. 1% mint fee charged on top of borrow.
         </p>
         <button className="btn-primary" onClick={onOpen} disabled={isPending}>
           {isPending ? "Submitting…" : "Open trove"}

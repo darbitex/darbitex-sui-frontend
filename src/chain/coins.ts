@@ -1,6 +1,6 @@
 import {
-  ONE_COIN_TYPE,
-  ONE_DECIMALS,
+  D_COIN_TYPE,
+  D_DECIMALS,
   SUI_COIN_TYPE,
   SUI_DECIMALS,
   USDC_COIN_TYPE,
@@ -34,7 +34,7 @@ export function normalizeType(t: string): string {
 const RAW_COINS: CoinInfo[] = [
   { type: SUI_COIN_TYPE, symbol: "SUI", decimals: SUI_DECIMALS },
   { type: USDC_COIN_TYPE, symbol: "USDC", decimals: USDC_DECIMALS },
-  { type: ONE_COIN_TYPE, symbol: "ONE", decimals: ONE_DECIMALS },
+  { type: D_COIN_TYPE, symbol: "D", decimals: D_DECIMALS },
 ];
 
 export const KNOWN_COINS: Record<string, CoinInfo> = Object.fromEntries(

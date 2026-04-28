@@ -17,18 +17,19 @@ export const LOCKER_PACKAGE =
 export const STAKING_PACKAGE =
   "0x1647e7c513d1be2e95b5e1db28baf67480f82ed3457a478192bc57d13580d85b";
 
-// ONE Sui — immutable Liquity-V1 CDP, SUI collateral, Pyth oracle.
-// Package sealed via make_immutable; Registry.sealed=true.
-export const ONE_PACKAGE =
-  "0x9f39a102363cec6218392c2e22208b3e05972ecc87af5daa62bac7015bf3b8dc";
+// D — immutable Liquity-V1 CDP stablecoin v0.2.0, SUI collateral, Pyth oracle.
+// Rebrand of ONE v0.1.0 + 10/90 fee split + agnostic donate_to_sp /
+// donate_to_reserve. Package sealed via make_immutable; Registry.sealed=true.
+export const D_PACKAGE =
+  "0x898d83f0e128eb2024e435bc9da116d78f47c631e74096e505f5c86f8910b0d7";
 
-export const ONE_REGISTRY =
-  "0xef9abb071f648903183863a099d0564ca6a745605298c9304841d8ae80b2877a";
+export const D_REGISTRY =
+  "0x22992b14865add7112b62f6d1e0e5194d8495c701f82e1d907148dfb53b9fc82";
 
-export const ONE_COIN_TYPE = `${ONE_PACKAGE}::ONE::ONE`;
+export const D_COIN_TYPE = `${D_PACKAGE}::D::D`;
 
 // Pyth SUI/USD on Sui mainnet. PriceInfoObject must be refreshed in the
-// same PTB as any oracle-dependent ONE entry, or the call aborts E_STALE.
+// same PTB as any oracle-dependent D entry, or the call aborts E_STALE.
 export const PYTH_SUI_USD_PRICE_INFO_OBJECT =
   "0x801dbc2f0053d34734814b2d6df491ce7807a725fe9a01ad74a07e9c51396c37";
 export const PYTH_SUI_USD_FEED_ID =
@@ -47,17 +48,46 @@ export const USDC_COIN_TYPE =
   "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC";
 export const USDC_DECIMALS = 6;
 
-// ONE protocol parameters (informational; locked on-chain forever).
-export const ONE_DECIMALS = 8;
+// D protocol parameters (informational; locked on-chain forever).
+export const D_DECIMALS = 8;
 export const SUI_DECIMALS = 9;
-export const ONE_MCR_BPS = 20_000; // 200%
-export const ONE_LIQ_THRESHOLD_BPS = 15_000; // 150%
-export const ONE_FEE_BPS = 100; // 1% mint + 1% redeem
-export const ONE_MIN_DEBT = 100_000_000n; // 1 ONE in raw units
+export const D_MCR_BPS = 20_000; // 200%
+export const D_LIQ_THRESHOLD_BPS = 15_000; // 150%
+export const D_FEE_BPS = 100; // 1% mint + 1% redeem
+export const D_MIN_DEBT = 100_000_000n; // 1 D in raw units (8 dec)
 
 // Darbitex AMM constants.
 export const DARBITEX_SWAP_FEE_BPS = 5;
 export const DARBITEX_FLASH_FEE_BPS = 5;
+
+// Darbitex Sui Token Factory — permissionless 1B-fixed-supply coin minter,
+// sealed 2026-04-29 via package::make_immutable.
+export const TOKEN_FACTORY_PACKAGE =
+  "0xecc1e4904528453701abd873df637f8d2da3ab780dbcb33c36db005d7c920d89";
+export const TOKEN_FACTORY_REGISTRY =
+  "0x4cc55154df42b8bab323d7671fd504c444b49f8897bfd4f84f05826b9ccd42cf";
+// Sui CoinRegistry shared object — type-keyed registry that holds Currency<T>.
+export const SUI_COIN_REGISTRY = "0xc";
+// Factory launch constraints (mirrored from factory.move).
+export const TF_REQUIRED_DECIMALS = 9;
+export const TF_TOTAL_SUPPLY = 1_000_000_000_000_000_000n; // 1B * 10^9
+export const TF_SYMBOL_MIN = 1;
+export const TF_SYMBOL_MAX = 32;
+export const TF_NAME_MIN = 1;
+export const TF_NAME_MAX = 64;
+export const TF_DESC_MIN = 1;
+export const TF_DESC_MAX = 1000;
+export const TF_ICON_MIN = 12;
+export const TF_ICON_MAX = 65_536;
+export const TF_ICON_PREFIX = "data:image/";
+// Tier fee in raw D units (8 decimals).
+export const TF_FEE_RAW: Record<number, bigint> = {
+  1: 100_000_000_000n, // 1000 D
+  2: 10_000_000_000n,  // 100 D
+  3: 1_000_000_000n,   // 10 D
+  4: 100_000_000n,     // 1 D
+  5: 10_000_000n,      // 0.1 D (5+ chars)
+};
 
 // Sui mainnet chain id (used by SuiNS / Walrus host site).
 export const SUI_NETWORK = "mainnet" as const;

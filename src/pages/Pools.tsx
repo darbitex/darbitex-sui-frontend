@@ -96,8 +96,8 @@ export function PoolsBody() {
           <p>No pools yet.</p>
           <p className="dim">
             The factory is sealed and permissionless — anyone can be first.
-            Click <strong>+ Create pool</strong> above. To seed a SUI/ONE
-            pool, mint some ONE first from the One → Trove tab.
+            Click <strong>+ Create pool</strong> above. To seed a SUI/D
+            pool, mint some D first from the D → Trove tab.
           </p>
         </div>
       )}

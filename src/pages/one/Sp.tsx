@@ -10,8 +10,8 @@ import {
   buildSpWithdrawTx,
   readSpPosition,
   type SpPositionView,
-} from "../../chain/one";
-import { ONE_COIN_TYPE, ONE_DECIMALS } from "../../config";
+} from "../../chain/d";
+import { D_COIN_TYPE, D_DECIMALS } from "../../config";
 import { formatUnits, parseUnits } from "../../chain/format";
 import { useCoinBalance } from "../../chain/useBalance";
 
@@ -23,7 +23,7 @@ export function OneSp() {
   const [withdrawStr, setWithdrawStr] = useState("");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  const oneBal = useCoinBalance(ONE_COIN_TYPE, statusMsg);
+  const dBal = useCoinBalance(D_COIN_TYPE, statusMsg);
   const [spPos, setSpPos] = useState<SpPositionView | null>(null);
 
   useEffect(() => {
@@ -44,14 +44,14 @@ export function OneSp() {
 
   const depositAmount = useMemo(() => {
     try {
-      return parseUnits(depositStr || "0", ONE_DECIMALS);
+      return parseUnits(depositStr || "0", D_DECIMALS);
     } catch {
       return 0n;
     }
   }, [depositStr]);
   const withdrawAmount = useMemo(() => {
     try {
-      return parseUnits(withdrawStr || "0", ONE_DECIMALS);
+      return parseUnits(withdrawStr || "0", D_DECIMALS);
     } catch {
       return 0n;
     }
@@ -102,12 +102,13 @@ export function OneSp() {
       <div className="panel">
         <h2>Deposit</h2>
         <p className="dim">
-          Deposit ONE to absorb liquidations. Earns liquidator-share SUI plus
-          burns debt.
+          Deposit D to absorb liquidations. Earns liquidator-share SUI plus
+          90% of every fee cycle. Donations bypass the SP denominator so your
+          yield share is not diluted.
         </p>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <label className="field-label" style={{ margin: 0 }}>Amount</label>
-          <span className="dim">bal: {formatUnits(oneBal, ONE_DECIMALS)} ONE</span>
+          <span className="dim">bal: {formatUnits(dBal, D_DECIMALS)} D</span>
         </div>
         <div className="amount-row">
           <input
@@ -117,17 +118,17 @@ export function OneSp() {
             placeholder="0.0"
             inputMode="decimal"
           />
-          {oneBal > 0n && (
+          {dBal > 0n && (
             <button
               type="button"
               className="btn-ghost"
               style={{ padding: "4px 10px", fontSize: 11 }}
-              onClick={() => setDepositStr(formatUnits(oneBal, ONE_DECIMALS))}
+              onClick={() => setDepositStr(formatUnits(dBal, D_DECIMALS))}
             >
               max
             </button>
           )}
-          <span className="amount-sym">ONE</span>
+          <span className="amount-sym">D</span>
         </div>
         <button className="btn-primary" onClick={onDeposit} disabled={isPending}>
           {isPending ? "Submitting…" : "Deposit"}
@@ -139,7 +140,7 @@ export function OneSp() {
         <div className="row" style={{ justifyContent: "space-between" }}>
           <label className="field-label" style={{ margin: 0 }}>Amount</label>
           <span className="dim">
-            available: {formatUnits(spDeposited, ONE_DECIMALS)} ONE
+            available: {formatUnits(spDeposited, D_DECIMALS)} D
           </span>
         </div>
         <div className="amount-row">
@@ -155,12 +156,12 @@ export function OneSp() {
               type="button"
               className="btn-ghost"
               style={{ padding: "4px 10px", fontSize: 11 }}
-              onClick={() => setWithdrawStr(formatUnits(spDeposited, ONE_DECIMALS))}
+              onClick={() => setWithdrawStr(formatUnits(spDeposited, D_DECIMALS))}
             >
               max
             </button>
           )}
-          <span className="amount-sym">ONE</span>
+          <span className="amount-sym">D</span>
         </div>
         <button className="btn-primary" onClick={onWithdraw} disabled={isPending}>
           {isPending ? "Submitting…" : "Withdraw"}
@@ -168,13 +169,13 @@ export function OneSp() {
 
         <h2 style={{ marginTop: 16 }}>Claim rewards</h2>
         <p className="dim">
-          Liquidations pay SP depositors a share of seized SUI plus burn ONE.
-          Claim transfers the unclaimed amounts to your wallet.
+          Liquidations + 90% of every fee pay SP depositors. Claim transfers
+          unclaimed D + SUI to your wallet.
         </p>
         <div className="quote-box">
           <div className="quote-row">
-            <span className="dim">pending ONE</span>
-            <span>{formatUnits(spPos?.pendingOne ?? 0n, ONE_DECIMALS)}</span>
+            <span className="dim">pending D</span>
+            <span>{formatUnits(spPos?.pendingD ?? 0n, D_DECIMALS)}</span>
           </div>
           <div className="quote-row">
             <span className="dim">pending SUI</span>
@@ -187,7 +188,7 @@ export function OneSp() {
           disabled={
             isPending ||
             !spPos ||
-            (spPos.pendingOne === 0n && spPos.pendingColl === 0n)
+            (spPos.pendingD === 0n && spPos.pendingColl === 0n)
           }
         >
           {isPending ? "Submitting…" : "Claim rewards"}

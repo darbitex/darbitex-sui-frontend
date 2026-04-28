@@ -8,9 +8,9 @@ import {
   buildLiquidateTx,
   discoverLiquidatable,
   type UnderwaterTrove,
-} from "../../chain/one";
+} from "../../chain/d";
 import { compactNumber, formatUnits, shortAddr } from "../../chain/format";
-import { ONE_DECIMALS, SUI_DECIMALS } from "../../config";
+import { D_DECIMALS, SUI_DECIMALS } from "../../config";
 
 export function OneLiquidate() {
   const client = useSuiClient();
@@ -124,7 +124,7 @@ export function OneLiquidate() {
                     </a>
                   </td>
                   <td>{compactNumber(t.collateral, SUI_DECIMALS)} SUI</td>
-                  <td>{compactNumber(t.debt, ONE_DECIMALS)} ONE</td>
+                  <td>{compactNumber(t.debt, D_DECIMALS)} D</td>
                   <td className={crColor(t.crBps)}>
                     {(Number(t.crBps) / 100).toFixed(2)}%
                   </td>

@@ -28,7 +28,13 @@ const OneRedeem = lazy(() => import("./pages/one/Redeem").then((m) => ({ default
 const OneLiquidate = lazy(() =>
   import("./pages/one/Liquidate").then((m) => ({ default: m.OneLiquidate })),
 );
+const OneDonate = lazy(() =>
+  import("./pages/one/Donate").then((m) => ({ default: m.OneDonate })),
+);
 
+const FactoryPage = lazy(() =>
+  import("./pages/Factory").then((m) => ({ default: m.FactoryPage })),
+);
 const AboutPage = lazy(() => import("./pages/About").then((m) => ({ default: m.AboutPage })));
 
 function PageFallback() {
@@ -61,8 +67,10 @@ export function App() {
               <Route path="sp" element={wrap(<OneSp />)} />
               <Route path="redeem" element={wrap(<OneRedeem />)} />
               <Route path="liquidate" element={wrap(<OneLiquidate />)} />
+              <Route path="donate" element={wrap(<OneDonate />)} />
             </Route>
 
+            <Route path="factory" element={wrap(<FactoryPage />)} />
             <Route path="about" element={wrap(<AboutPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

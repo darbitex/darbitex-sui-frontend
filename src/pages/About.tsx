@@ -1,9 +1,11 @@
 import {
   DARBITEX_FACTORY,
   DARBITEX_PACKAGE,
-  ONE_PACKAGE,
-  ONE_REGISTRY,
+  D_PACKAGE,
+  D_REGISTRY,
   PYTH_SUI_USD_PRICE_INFO_OBJECT,
+  TOKEN_FACTORY_PACKAGE,
+  TOKEN_FACTORY_REGISTRY,
 } from "../config";
 
 function ExplorerLink({ id, label }: { id: string; label?: string }) {
@@ -78,26 +80,53 @@ export function AboutPage() {
       </div>
 
       <div className="panel">
-        <h2>ONE Sui</h2>
+        <h2>D Sui (v0.2.0)</h2>
         <p>
-          Liquity-V1-style CDP. SUI collateral, ONE stablecoin, Pyth SUI/USD
+          Liquity-V1-style CDP. SUI collateral, D stablecoin, Pyth SUI/USD
           oracle. 200% MCR, 150% liquidation threshold, 10% liquidation bonus
           (2.5% liquidator + 2.5% reserve + 50% Stability Pool). 1% fee on
-          mint and on redeem. 1 ONE minimum debt — retail-first. Sealed and
-          ownerless.
+          mint and on redeem, split <strong>10% to SP as agnostic donation
+          + 90% to keyed SP depositors</strong> as reward (no dilution from
+          the donation flow). 1 D minimum debt. Permissionless{" "}
+          <code>donate_to_sp</code> and <code>donate_to_reserve</code>.
+          Sealed and ownerless.
         </p>
         <ul className="kv">
           <li>
             <span className="dim">Package</span>
-            <ExplorerLink id={ONE_PACKAGE} />
+            <ExplorerLink id={D_PACKAGE} />
           </li>
           <li>
             <span className="dim">Registry</span>
-            <ExplorerLink id={ONE_REGISTRY} />
+            <ExplorerLink id={D_REGISTRY} />
           </li>
           <li>
             <span className="dim">Pyth SUI/USD</span>
             <ExplorerLink id={PYTH_SUI_USD_PRICE_INFO_OBJECT} />
+          </li>
+        </ul>
+      </div>
+
+      <div className="panel">
+        <h2>Darbitex Sui Token Factory</h2>
+        <p>
+          Permissionless 1B-fixed-supply coin minter. 9 decimals, no premint,
+          immutable metadata, on-chain icon (data:image/...). Tier fee in D
+          (1ch=1000 / 2=100 / 3=10 / 4=1 / 5+=0.1) routed entirely through{" "}
+          <code>D::donate_to_sp</code> as an SP donation — every launch
+          permanently locks D in the protocol. Caller's OTW UpgradeCap is
+          consumed atomically inside <code>launch</code> via{" "}
+          <code>package::make_immutable</code>. Symbol uniqueness within
+          this factory is Table-keyed.
+        </p>
+        <ul className="kv">
+          <li>
+            <span className="dim">Package</span>
+            <ExplorerLink id={TOKEN_FACTORY_PACKAGE} />
+          </li>
+          <li>
+            <span className="dim">FactoryRegistry</span>
+            <ExplorerLink id={TOKEN_FACTORY_REGISTRY} />
           </li>
         </ul>
       </div>
@@ -131,13 +160,23 @@ export function AboutPage() {
             </a>
           </li>
           <li>
-            <span className="dim">ONE</span>
+            <span className="dim">D</span>
             <a
-              href="https://github.com/darbitex/ONE"
+              href="https://github.com/darbitex/D"
               target="_blank"
               rel="noopener noreferrer"
             >
-              github.com/darbitex/ONE
+              github.com/darbitex/D
+            </a>
+          </li>
+          <li>
+            <span className="dim">Token Factory</span>
+            <a
+              href="https://github.com/darbitex/darbitex-sui-token-factory"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/darbitex/darbitex-sui-token-factory
             </a>
           </li>
         </ul>

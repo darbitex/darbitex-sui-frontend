@@ -4,9 +4,9 @@ import { SuiPriceServiceConnection, SuiPythClient } from "@pythnetwork/pyth-sui-
 
 type SuiClient = SuiJsonRpcClient;
 import {
-  ONE_COIN_TYPE,
-  ONE_PACKAGE,
-  ONE_REGISTRY,
+  D_COIN_TYPE,
+  D_PACKAGE,
+  D_REGISTRY,
   PYTH_HERMES_URL,
   PYTH_SUI_USD_FEED_ID,
   PYTH_SUI_USD_PRICE_INFO_OBJECT,
@@ -38,7 +38,7 @@ export async function discoverTroveOwners(client: SuiClient): Promise<string[]> 
   let cursor: { txDigest: string; eventSeq: string } | null | undefined = undefined;
   for (let i = 0; i < 20; i++) {
     const page = await client.queryEvents({
-      query: { MoveEventType: `${ONE_PACKAGE}::ONE::TroveOpened` },
+      query: { MoveEventType: `${D_PACKAGE}::D::TroveOpened` },
       limit: 50,
       order: "descending",
       cursor: cursor ?? undefined,
@@ -116,39 +116,62 @@ interface RegistryFields {
   total_debt: string;
   total_sp: string;
   product_factor: string;
-  reward_index_one: string;
+  reward_index_d: string;
   reward_index_coll: string;
   sealed: boolean;
 }
 
 export async function readRegistry(client: SuiClient): Promise<RegistryFields | null> {
   const obj = await client.getObject({
-    id: ONE_REGISTRY,
+    id: D_REGISTRY,
     options: { showContent: true },
   });
   if (!obj.data?.content || obj.data.content.dataType !== "moveObject") return null;
   return (obj.data.content as unknown as { fields: RegistryFields }).fields;
 }
 
+// Reserve SUI balance held in Registry.reserve_coll. Used by reserve-redeem
+// + reserve-donate UIs (capacity hint).
+export async function readReserveBalance(client: SuiClient): Promise<bigint> {
+  const res = await client.devInspectTransactionBlock({
+    sender: "0x0000000000000000000000000000000000000000000000000000000000000000",
+    transactionBlock: (() => {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${D_PACKAGE}::D::reserve_balance`,
+        arguments: [tx.object(D_REGISTRY)],
+      });
+      return tx;
+    })(),
+  });
+  const ret = res.results?.[0]?.returnValues?.[0]?.[0];
+  if (!ret) return 0n;
+  // u64 LE bytes
+  const bytes = Array.isArray(ret) ? ret : Array.from(ret as Uint8Array);
+  let v = 0n;
+  for (let i = bytes.length - 1; i >= 0; i--) v = (v << 8n) | BigInt(bytes[i] ?? 0);
+  return v;
+}
+
 export interface SpPositionView {
-  // Current effective ONE balance — what `sp_withdraw` would let you take.
+  // Current effective D balance — what `sp_withdraw` would let you take.
   // Decays via product_factor from past liquidations.
   effective: bigint;
   // Pending unclaimed rewards.
-  pendingOne: bigint;
+  pendingD: bigint;
   pendingColl: bigint;
 }
 
-// Read a user's SP position. Mirrors ONE.move::sp_of's math:
+// Read a user's SP position. Mirrors D.move::sp_of's math:
 //   eff      = initial_balance * product_factor / snapshot_product
-//   p_one    = (reward_index_one  - snapshot_index_one ) * init / snapshot_product
+//   p_d      = (reward_index_d   - snapshot_index_d   ) * init / snapshot_product
 //   p_coll   = (reward_index_coll - snapshot_index_coll) * init / snapshot_product
 export async function readSpPosition(
   client: SuiClient,
   owner: string,
 ): Promise<SpPositionView | null> {
   const reg = await client.getObject({
-    id: ONE_REGISTRY,
+    id: D_REGISTRY,
     options: { showContent: true },
   });
   const c = reg.data?.content;
@@ -159,7 +182,7 @@ export async function readSpPosition(
   const spTableId = (fields.sp_positions as { fields?: { id?: { id: string } } } | undefined)?.fields?.id?.id;
   if (!spTableId) return null;
   const productFactor = BigInt(fields.product_factor as string);
-  const rewardOne = BigInt(fields.reward_index_one as string);
+  const rewardD = BigInt(fields.reward_index_d as string);
   const rewardColl = BigInt(fields.reward_index_coll as string);
   try {
     const dyn = await client.getDynamicFieldObject({
@@ -174,7 +197,7 @@ export async function readSpPosition(
           fields: {
             initial_balance: string;
             snapshot_product: string;
-            snapshot_index_one: string;
+            snapshot_index_d: string;
             snapshot_index_coll: string;
           };
         };
@@ -183,13 +206,13 @@ export async function readSpPosition(
     if (!sp) return null;
     const init = BigInt(sp.initial_balance);
     const snapP = BigInt(sp.snapshot_product);
-    const snapOne = BigInt(sp.snapshot_index_one);
+    const snapD = BigInt(sp.snapshot_index_d);
     const snapColl = BigInt(sp.snapshot_index_coll);
     if (snapP === 0n) return null;
     const effective = (init * productFactor) / snapP;
-    const pendingOne = ((rewardOne - snapOne) * init) / snapP;
+    const pendingD = ((rewardD - snapD) * init) / snapP;
     const pendingColl = ((rewardColl - snapColl) * init) / snapP;
-    return { effective, pendingOne, pendingColl };
+    return { effective, pendingD, pendingColl };
   } catch {
     return null;
   }
@@ -198,7 +221,7 @@ export async function readSpPosition(
 // Read a user's trove via the troves Table dynamic field.
 export async function readTrove(client: SuiClient, owner: string): Promise<TroveView | null> {
   const reg = await client.getObject({
-    id: ONE_REGISTRY,
+    id: D_REGISTRY,
     options: { showContent: true },
   });
   const c = reg.data?.content;
@@ -226,7 +249,7 @@ export async function readTrove(client: SuiClient, owner: string): Promise<Trove
 }
 
 // Build a Pyth refresh sub-call into `tx`. Returns the PriceInfoObject id
-// the downstream ONE entries should reference. Per ONE.move every
+// the downstream D entries should reference. Per D.move every
 // oracle-dependent entry must see a non-stale PriceInfoObject in the SAME PTB.
 //
 // The Pyth Sui SDK ships with its own pinned @mysten/sui dep, so the
@@ -252,8 +275,8 @@ export interface OpenTroveArgs {
   borrowAmount: bigint;
 }
 
-// ONE::open_trove_entry(reg, coll, debt, pi, clock, ctx) — transfers the
-// minted Coin<ONE> back to sender. Use the entry variant so we don't
+// D::open_trove_entry(reg, coll, debt, pi, clock, ctx) — transfers the
+// minted Coin<D> back to sender. Use the entry variant so we don't
 // have to handle the returned coin manually.
 export async function buildOpenTroveTx(
   client: SuiClient,
@@ -269,9 +292,9 @@ export async function buildOpenTroveTx(
     args.collateralAmount,
   );
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::open_trove_entry`,
+    target: `${D_PACKAGE}::D::open_trove_entry`,
     arguments: [
-      tx.object(ONE_REGISTRY),
+      tx.object(D_REGISTRY),
       coll,
       tx.pure.u64(args.borrowAmount),
       tx.object(priceInfo),
@@ -281,7 +304,7 @@ export async function buildOpenTroveTx(
   return tx;
 }
 
-// ONE::add_collateral(reg, coll, ctx) — no return.
+// D::add_collateral(reg, coll, ctx) — no return.
 export async function buildAddCollateralTx(
   client: SuiClient,
   sender: string,
@@ -290,35 +313,35 @@ export async function buildAddCollateralTx(
   const tx = new Transaction();
   const coll = await takeExactCoin(client, tx, sender, SUI_COIN_TYPE, amount);
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::add_collateral`,
-    arguments: [tx.object(ONE_REGISTRY), coll],
+    target: `${D_PACKAGE}::D::add_collateral`,
+    arguments: [tx.object(D_REGISTRY), coll],
   });
   return tx;
 }
 
-// ONE::close_trove_entry(reg, one_in, ctx) — burns trove debt; transfers
-// Coin<SUI> collateral back to sender. one_in must hold at least full debt.
+// D::close_trove_entry(reg, d_in, ctx) — burns trove debt; transfers
+// Coin<SUI> collateral back to sender. d_in must hold at least full debt.
 export async function buildCloseTroveTx(
   client: SuiClient,
   sender: string,
-  oneAmountAtLeastDebt: bigint,
+  dAmountAtLeastDebt: bigint,
 ): Promise<Transaction> {
   const tx = new Transaction();
-  const oneCoin = await takeExactCoin(
+  const dCoin = await takeExactCoin(
     client,
     tx,
     sender,
-    ONE_COIN_TYPE,
-    oneAmountAtLeastDebt,
+    D_COIN_TYPE,
+    dAmountAtLeastDebt,
   );
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::close_trove_entry`,
-    arguments: [tx.object(ONE_REGISTRY), oneCoin],
+    target: `${D_PACKAGE}::D::close_trove_entry`,
+    arguments: [tx.object(D_REGISTRY), dCoin],
   });
   return tx;
 }
 
-// ONE::sp_deposit(reg, one_in, ctx) — deposits the FULL Coin<ONE> by value.
+// D::sp_deposit(reg, d_in, ctx) — deposits the FULL Coin<D> by value.
 // We split exactly `amount` from the caller's pool so the deposit is the
 // requested size, not whatever the user happened to hold.
 export async function buildSpDepositTx(
@@ -327,31 +350,124 @@ export async function buildSpDepositTx(
   amount: bigint,
 ): Promise<Transaction> {
   const tx = new Transaction();
-  const oneCoin = await takeExactCoin(client, tx, sender, ONE_COIN_TYPE, amount);
+  const dCoin = await takeExactCoin(client, tx, sender, D_COIN_TYPE, amount);
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::sp_deposit`,
-    arguments: [tx.object(ONE_REGISTRY), oneCoin],
+    target: `${D_PACKAGE}::D::sp_deposit`,
+    arguments: [tx.object(D_REGISTRY), dCoin],
   });
   return tx;
 }
 
-// ONE::sp_withdraw_entry(reg, amt, ctx) — transfers Coin<ONE> back to sender.
+// D::sp_withdraw_entry(reg, amt, ctx) — transfers Coin<D> back to sender.
 export function buildSpWithdrawTx(amount: bigint): Transaction {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::sp_withdraw_entry`,
-    arguments: [tx.object(ONE_REGISTRY), tx.pure.u64(amount)],
+    target: `${D_PACKAGE}::D::sp_withdraw_entry`,
+    arguments: [tx.object(D_REGISTRY), tx.pure.u64(amount)],
   });
   return tx;
 }
 
-// ONE::sp_claim(reg, ctx) — settles pending SP rewards into the user's
+// D::sp_claim(reg, ctx) — settles pending SP rewards into the user's
 // position. Does not transfer; rewards live on the Registry until withdrawn.
 export function buildSpClaimTx(): Transaction {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::sp_claim`,
-    arguments: [tx.object(ONE_REGISTRY)],
+    target: `${D_PACKAGE}::D::sp_claim`,
+    arguments: [tx.object(D_REGISTRY)],
+  });
+  return tx;
+}
+
+export interface DonationStats {
+  spTotalRaw: bigint;
+  spCount: number;
+  reserveTotalRaw: bigint;
+  reserveCount: number;
+  // Last N donations, newest first.
+  recentSp: { donor: string; amount: bigint; tx: string; ts: number }[];
+  recentReserve: { donor: string; amount: bigint; tx: string; ts: number }[];
+}
+
+// Aggregate SPDonated + ReserveDonated events from D::D. Pages up to
+// MAX_PAGES of 50 events per stream and sums them. Returns donor totals
+// + recent N for display. Costs 2× ~10 RPC calls; cache caller-side.
+export async function readDonationStats(
+  client: SuiClient,
+  recentN: number = 10,
+  maxPages: number = 20,
+): Promise<DonationStats> {
+  async function pageEvents(eventName: string) {
+    const all: Array<{ donor: string; amount: bigint; tx: string; ts: number }> = [];
+    let cursor: { txDigest: string; eventSeq: string } | null | undefined = undefined;
+    for (let i = 0; i < maxPages; i++) {
+      const page = await client.queryEvents({
+        query: { MoveEventType: `${D_PACKAGE}::D::${eventName}` },
+        limit: 50,
+        order: "descending",
+        cursor: cursor ?? undefined,
+      });
+      for (const ev of page.data) {
+        const j = ev.parsedJson as { donor?: string; amount?: string } | undefined;
+        if (!j?.donor || !j?.amount) continue;
+        all.push({
+          donor: j.donor,
+          amount: BigInt(j.amount),
+          tx: ev.id.txDigest,
+          ts: Number(ev.timestampMs ?? 0),
+        });
+      }
+      if (!page.hasNextPage) break;
+      cursor = page.nextCursor as typeof cursor;
+    }
+    return all;
+  }
+  const [sp, rsv] = await Promise.all([
+    pageEvents("SPDonated"),
+    pageEvents("ReserveDonated"),
+  ]);
+  const spTotal = sp.reduce((a, x) => a + x.amount, 0n);
+  const rsvTotal = rsv.reduce((a, x) => a + x.amount, 0n);
+  return {
+    spTotalRaw: spTotal,
+    spCount: sp.length,
+    reserveTotalRaw: rsvTotal,
+    reserveCount: rsv.length,
+    recentSp: sp.slice(0, recentN),
+    recentReserve: rsv.slice(0, recentN),
+  };
+}
+
+// D::donate_to_sp(reg, d_in, ctx) — agnostic SP donation. Joins sp_pool
+// balance only; does NOT increment total_sp. No reward dilution for keyed
+// depositors. Permanently burns via future liquidation absorption.
+export async function buildSpDonateTx(
+  client: SuiClient,
+  sender: string,
+  amount: bigint,
+): Promise<Transaction> {
+  const tx = new Transaction();
+  const dCoin = await takeExactCoin(client, tx, sender, D_COIN_TYPE, amount);
+  tx.moveCall({
+    target: `${D_PACKAGE}::D::donate_to_sp`,
+    arguments: [tx.object(D_REGISTRY), dCoin],
+  });
+  return tx;
+}
+
+// D::donate_to_reserve(reg, sui_in, ctx) — fortifies reserve_coll capacity
+// for redeem_from_reserve. Permissionless one-way deposit; no admin
+// extraction path exists.
+export async function buildReserveDonateTx(
+  client: SuiClient,
+  sender: string,
+  amount: bigint,
+): Promise<Transaction> {
+  const tx = new Transaction();
+  const sui = await takeExactCoin(client, tx, sender, SUI_COIN_TYPE, amount);
+  tx.moveCall({
+    target: `${D_PACKAGE}::D::donate_to_reserve`,
+    arguments: [tx.object(D_REGISTRY), sui],
   });
   return tx;
 }
@@ -362,27 +478,50 @@ export interface RedeemArgs {
   amount: bigint;
 }
 
-// ONE::redeem_entry(reg, one_in, target, pi, clock, ctx) — burns ONE,
-// transfers Coin<SUI> back to sender. Move arg order: one_in BEFORE target.
+// D::redeem_entry(reg, d_in, target, pi, clock, ctx) — burns D,
+// transfers Coin<SUI> back to sender. Move arg order: d_in BEFORE target.
 export async function buildRedeemTx(
   client: SuiClient,
   args: RedeemArgs,
 ): Promise<Transaction> {
   const tx = new Transaction();
   const priceInfo = await refreshPyth(client, tx);
-  const oneCoin = await takeExactCoin(
+  const dCoin = await takeExactCoin(
     client,
     tx,
     args.sender,
-    ONE_COIN_TYPE,
+    D_COIN_TYPE,
     args.amount,
   );
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::redeem_entry`,
+    target: `${D_PACKAGE}::D::redeem_entry`,
     arguments: [
-      tx.object(ONE_REGISTRY),
-      oneCoin,
+      tx.object(D_REGISTRY),
+      dCoin,
       tx.pure.address(args.target),
+      tx.object(priceInfo),
+      tx.object("0x6"),
+    ],
+  });
+  return tx;
+}
+
+// D::redeem_from_reserve_entry(reg, d_in, pi, clock, ctx) — burns D,
+// pulls SUI directly out of reserve_coll (no per-trove target). Requires
+// reserve_balance >= net_coll_out. Same 1% fee as trove-redeem.
+export async function buildRedeemFromReserveTx(
+  client: SuiClient,
+  sender: string,
+  amount: bigint,
+): Promise<Transaction> {
+  const tx = new Transaction();
+  const priceInfo = await refreshPyth(client, tx);
+  const dCoin = await takeExactCoin(client, tx, sender, D_COIN_TYPE, amount);
+  tx.moveCall({
+    target: `${D_PACKAGE}::D::redeem_from_reserve_entry`,
+    arguments: [
+      tx.object(D_REGISTRY),
+      dCoin,
       tx.object(priceInfo),
       tx.object("0x6"),
     ],
@@ -394,7 +533,7 @@ export interface LiquidateArgs {
   target: string;
 }
 
-// ONE::liquidate_entry(reg, target, pi, clock, ctx) — transfers liquidator's
+// D::liquidate_entry(reg, target, pi, clock, ctx) — transfers liquidator's
 // SUI bonus back to sender.
 export async function buildLiquidateTx(
   client: SuiClient,
@@ -403,9 +542,9 @@ export async function buildLiquidateTx(
   const tx = new Transaction();
   const priceInfo = await refreshPyth(client, tx);
   tx.moveCall({
-    target: `${ONE_PACKAGE}::ONE::liquidate_entry`,
+    target: `${D_PACKAGE}::D::liquidate_entry`,
     arguments: [
-      tx.object(ONE_REGISTRY),
+      tx.object(D_REGISTRY),
       tx.pure.address(args.target),
       tx.object(priceInfo),
       tx.object("0x6"),
